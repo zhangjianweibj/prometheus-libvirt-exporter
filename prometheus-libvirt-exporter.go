@@ -9,6 +9,7 @@ import (
 	_"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus-libvirt-exporter/libvirt_schema"
 	"encoding/xml"
+	libvirt2 "github.com/libvirt/libvirt-go"
 )
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 	for _, d := range domains {
 		//fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
 		xmlDesc,error := l.DomainGetXMLDesc(d,0)
+
 		if error !=nil {
 			log.Fatalf("failed to DomainGetXMLDesc: %v",error)
 			continue

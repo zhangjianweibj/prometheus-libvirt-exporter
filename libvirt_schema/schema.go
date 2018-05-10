@@ -1,5 +1,7 @@
 package libvirt_schema
 
+import "encoding/xml"
+
 type Domain struct {
 	Devices Devices `xml:"devices"`
 	Name string `xml:"name"`
@@ -8,11 +10,11 @@ type Domain struct {
 }
 
 type Metadata struct {
-	NovaInstance NovaInstance `xml:"nova\:instance"`
+	NovaInstance NovaInstance `xml:"nova:instance"`
 }
 
 type NovaInstance struct {
-	NovaName string `xml:"nova\:name"`
+	NovaName xml.Name `xml:"nova:name"`
 }
 
 type Devices struct {
