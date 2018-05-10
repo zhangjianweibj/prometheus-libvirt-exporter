@@ -7,7 +7,7 @@ import (
 	"time"
 	"github.com/digitalocean/go-libvirt"
 	_"github.com/prometheus/client_golang/prometheus"
-	"prometheus-libvirt-exporter/libvirt_schema"
+	"github.com/prometheus-libvirt-exporter/libvirt_schema"
 	"encoding/xml"
 )
 
