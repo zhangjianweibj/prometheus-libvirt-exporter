@@ -50,7 +50,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("%s\n",libvirtSchema.Metadata.NovaInstance.NovaName)
+		fmt.Printf("%s\n",libvirtSchema)
 
 	}
 
