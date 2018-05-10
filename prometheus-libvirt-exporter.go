@@ -40,15 +40,17 @@ func main() {
 		//fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
 		xmlDesc,error := l.DomainGetXMLDesc(d,0)
 		if error !=nil {
+			log.Fatalf("failed to DomainGetXMLDesc: %v",error)
 			continue
 		}
 		var libvirtSchema libvirt_schema.Domain
 		error = xml.Unmarshal([]byte(xmlDesc),&libvirtSchema)
 		if error !=nil {
+			log.Fatalf("failed to Unmarshal domains: %v",error)
 			continue
 		}
 
-		fmt.Println(libvirtSchema.Metadata.NovaInstance.NovaName)
+		fmt.Printf("%s\n",libvirtSchema.Metadata.NovaInstance.NovaName)
 
 	}
 
