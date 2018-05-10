@@ -50,7 +50,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("%s\n",libvirtSchema)
+		fmt.Printf("%+v\n",libvirtSchema)
 
 	}
 
