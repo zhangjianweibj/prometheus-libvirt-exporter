@@ -8,11 +8,11 @@ type Domain struct {
 }
 
 type Metadata struct {
-	NovaInstance NovaInstance `xml:"nova:instance"`
+	NovaInstance NovaInstance `xml:"nova\:instance"`
 }
 
 type NovaInstance struct {
-	NovaName string `xml:"nova:name"`
+	NovaName string `xml:"nova\:name"`
 }
 
 type Devices struct {
