@@ -13,6 +13,10 @@ import (
 	"encoding/xml"
 )
 
+func init()  {
+
+}
+
 var (
 	libvirtUpDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "", "up"),
@@ -128,7 +132,7 @@ var (
 // CollectDomain extracts Prometheus metrics from a libvirt domain.
 func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvirt.Domain) error {
 	xmlDesc,err := l.DomainGetXMLDesc(*domain,0)
-
+	fmt.Println(xmlDesc)
 	if err !=nil {
 		log.Fatalf("failed to DomainGetXMLDesc: %v",err)
 		return err
@@ -302,6 +306,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 // CollectFromLibvirt obtains Prometheus metrics from all domains in a
 // libvirt setup.
 func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
+	fmt.Println("enter CollectFromLibvirt()")
 	conn,err := net.DialTimeout("unix",uri,5*time.Second)
 
 	if err != nil {
@@ -312,9 +317,6 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	defer conn.Close()
 	l := libvirt.New(conn)
 	domains, err := l.Domains()
-
-	slices1,_,_ := l.ConnectListAllDomains(10,0)
-	fmt.Println("slices1:",slices1)
 	if err != nil {
 		fmt.Println("domain error:",err)
 		return err
@@ -346,6 +348,7 @@ func NewLibvirtExporter(uri string) (*LibvirtExporter, error) {
 
 // Describe returns metadata for all Prometheus metrics that may be exported.
 func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
+	fmt.Println("enter Describe()")
 	ch <- libvirtUpDesc
 
 	ch <- libvirtDomainInfoMaxMemDesc
@@ -364,6 +367,7 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
+	fmt.Println("enter Collect()")
 	err := CollectFromLibvirt(ch, e.uri)
 	if err == nil {
 		ch <- prometheus.MustNewConstMetric(
