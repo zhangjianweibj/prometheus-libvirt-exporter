@@ -13,10 +13,6 @@ import (
 	"encoding/xml"
 )
 
-func init()  {
-
-}
-
 var (
 	libvirtUpDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "", "up"),
@@ -24,26 +20,28 @@ var (
 		nil,
 		nil)
 
+
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
-		[]string{"instancename"},
+		[]string{"instanceName","instanceId"},
 		nil)
 	libvirtDomainInfoMemoryDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "memory_usage_bytes"),
 		"Memory usage of the domain, in bytes.",
-		[]string{"instancename"},
+		[]string{"instanceName"},
 		nil)
 	libvirtDomainInfoNrVirtCpuDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
-		[]string{"instancename"},
+		[]string{"instanceName"},
 		nil)
 	libvirtDomainInfoCpuTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "cpu_time_seconds_total"),
 		"Amount of CPU time used by the domain, in seconds.",
-		[]string{"instancename"},
+		[]string{"instanceName"},
 		nil)
+
 
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_bytes_total"),
@@ -53,11 +51,6 @@ var (
 	libvirtDomainBlockRdReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_requests_total"),
 		"Number of read requests from a block device.",
-		[]string{"domain", "source_file", "target_device"},
-		nil)
-	libvirtDomainBlockRdTotalTimesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_seconds_total"),
-		"Amount of time spent reading from a block device, in seconds.",
 		[]string{"domain", "source_file", "target_device"},
 		nil)
 	libvirtDomainBlockWrBytesDesc = prometheus.NewDesc(
@@ -70,22 +63,8 @@ var (
 		"Number of write requests from a block device.",
 		[]string{"domain", "source_file", "target_device"},
 		nil)
-	libvirtDomainBlockWrTotalTimesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_seconds_total"),
-		"Amount of time spent writing from a block device, in seconds.",
-		[]string{"domain", "source_file", "target_device"},
-		nil)
-	libvirtDomainBlockFlushReqDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("libvirt", "domain_block_stats", "flush_requests_total"),
-		"Number of flush requests from a block device.",
-		[]string{"domain", "source_file", "target_device"},
-		nil)
-	libvirtDomainBlockFlushTotalTimesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("libvirt", "domain_block_stats", "flush_seconds_total"),
-		"Amount of time spent flushing of a block device, in seconds.",
-		[]string{"domain", "source_file", "target_device"},
-		nil)
 
+	//DomainInterface
 	libvirtDomainInterfaceRxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_bytes_total"),
 		"Number of bytes received on a network interface, in bytes.",
@@ -154,7 +133,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		libvirtDomainInfoMaxMemDesc,
 		prometheus.GaugeValue,
 		float64(rmaxmem)*1024,
-		domainName)
+		domainName,libvirtSchema.UUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoMemoryDesc,
 		prometheus.GaugeValue,
@@ -311,11 +290,10 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 
 	if err != nil {
 		log.Fatalf("failed to dial libvirt: %v", err)
-		fmt.Println("conn error:",err)
 		return err
 	}
 	defer conn.Close()
-	fmt.Println("conn",conn.LocalAddr())
+
 	l := libvirt.New(conn)
 	if err := l.Connect(); err != nil {
 		log.Fatalf("failed to connect: %v", err)
@@ -323,13 +301,13 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 
 	domains, err := l.Domains()
 	if err != nil {
-		fmt.Println("domain error:",err)
+		log.Fatalf("failed to load domain: %v", err)
 		return err
 	}
 	fmt.Println("before for:")
 	for _,domain := range domains {
 		err = CollectDomain(ch, l, &domain)
-		//l.DomainShutdown(domain)
+		l.DomainShutdown(domain)
 		//domain.Free()
 		if err != nil {
 			return err
@@ -356,17 +334,27 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	fmt.Println("enter Describe()")
 	ch <- libvirtUpDesc
 
+	//domain info
 	ch <- libvirtDomainInfoMaxMemDesc
 	ch <- libvirtDomainInfoMemoryDesc
 	ch <- libvirtDomainInfoNrVirtCpuDesc
 	ch <- libvirtDomainInfoCpuTimeDesc
 
+	//domain block
 	ch <- libvirtDomainBlockRdBytesDesc
 	ch <- libvirtDomainBlockRdReqDesc
-
 	ch <- libvirtDomainBlockWrBytesDesc
 	ch <- libvirtDomainBlockWrReqDesc
 
+	//domain interface
+	ch <- libvirtDomainInterfaceRxBytesDesc
+	ch <- libvirtDomainInterfaceRxPacketsDesc
+	ch <- libvirtDomainInterfaceRxErrsDesc
+	ch <- libvirtDomainInterfaceRxDropDesc
+	ch <- libvirtDomainInterfaceTxBytesDesc
+	ch <- libvirtDomainInterfaceTxPacketsDesc
+	ch <- libvirtDomainInterfaceTxErrsDesc
+	ch <- libvirtDomainInterfaceTxDropDesc
 
 }
 
