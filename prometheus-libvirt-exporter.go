@@ -9,7 +9,6 @@ import (
 	_"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus-libvirt-exporter/libvirt_schema"
 	"encoding/xml"
-	libvirt2 "github.com/libvirt/libvirt-go"
 )
 
 func main() {

@@ -10,12 +10,11 @@ type Domain struct {
 }
 
 type Metadata struct {
-	XMLName xml.Name `xml:"nova"`
 	NovaInstance NovaInstance `xml:"instance"`
 }
 
 type NovaInstance struct {
-	XMLName xml.Name `xml:"nova"`
+	XMLName xml.Name `xml:"instance"`
 	NovaName string `xml:"name"`
 }
 
