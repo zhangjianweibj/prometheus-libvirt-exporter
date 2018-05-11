@@ -329,7 +329,7 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	fmt.Println("before for:")
 	for _,domain := range domains {
 		err = CollectDomain(ch, l, &domain)
-		l.DomainShutdown(domain)
+		//l.DomainShutdown(domain)
 		//domain.Free()
 		if err != nil {
 			return err
