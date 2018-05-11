@@ -1,4 +1,5 @@
-# prometheus-libvirt-exporter
+#
+prometheus-libvirt-exporter
 prometheus-libvirt-exporter for host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors.
 By default, this exporter listens on TCP port 9000,Path '/metrics',to expose metrics.
 
@@ -10,9 +11,10 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 
 3.dep ensure
 
-4.go  build prometheus-libvirt-exporter.go
+4.go build prometheus-libvirt-exporter.go
 
-5. ./prometheus-libvirt-exporter
+5../prometheus-libvirt-exporter
 
-To see all available configuration flags:
+## To see all available configuration flags:
+
 ./prometheus-libvirt-exporter -h
