@@ -34,7 +34,7 @@ func main() {
 	}
 
 
-	fmt.Println("ID\tName\t\tUUID")
+	fmt.Println("NovaName\tID\tName\trstate\trmaxmem\t\trmemory\trvirCpu\trcputime")
 	fmt.Printf("--------------------------------------------------------\n")
 	for _, d := range domains {
 		//fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
@@ -51,20 +51,14 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("%+v\n",libvirtSchema)
+		//fmt.Printf("%+v\n",libvirtSchema)
 
-	}
-
-
-	fmt.Println("ID\tName\trstate\trmaxmem\t\trmemory\trvirCpu\trcputime")
-	fmt.Printf("--------------------------------------------------------\n")
-	for _, d := range domains {
-		//fmt.Printf("%d\t%s\t%x\n", d.ID, d.Name, d.UUID)
 		rstate,rmaxmem,rmemory,rvirCpu,rcputime,err := l.DomainGetInfo(d)
 		if err != nil{
 			continue
 		}
-		fmt.Printf("%s\t%s\t%d\t%d\t%d\t%d\t%d\t\n",d.ID,d.Name,rstate,rmaxmem,rmemory,rvirCpu,rcputime)
+		fmt.Printf("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t\n",libvirtSchema.Metadata.NovaInstance.NovaName,d.ID,d.Name,rstate,rmaxmem,rmemory,rvirCpu,rcputime)
+
 	}
 
 
