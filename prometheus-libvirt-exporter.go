@@ -20,7 +20,6 @@ var (
 		nil,
 		nil)
 
-
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
@@ -111,7 +110,6 @@ var (
 // CollectDomain extracts Prometheus metrics from a libvirt domain.
 func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvirt.Domain) error {
 	xmlDesc,err := l.DomainGetXMLDesc(*domain,0)
-	fmt.Println(xmlDesc)
 	if err !=nil {
 		log.Fatalf("failed to DomainGetXMLDesc: %v",err)
 		return err
