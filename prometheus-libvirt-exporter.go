@@ -308,7 +308,8 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 		l.DomainShutdown(domain)
 		//domain.Free()
 		if err != nil {
-			return err
+			log.Fatalf("failed to Collect domain: %v", err)
+			continue
 		}
 	}
 	fmt.Println("after for:")
