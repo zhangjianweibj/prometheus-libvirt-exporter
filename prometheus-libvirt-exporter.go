@@ -315,7 +315,9 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 		return err
 	}
 	defer conn.Close()
+	fmt.Println("conn",conn)
 	l := libvirt.New(conn)
+	fmt.Println("libvirt",l)
 	domains, err := l.Domains()
 	if err != nil {
 		fmt.Println("domain error:",err)
