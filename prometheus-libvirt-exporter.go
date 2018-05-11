@@ -352,8 +352,6 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainBlockWrBytesDesc
 	ch <- libvirtDomainBlockWrReqDesc
 
-
-
 }
 
 // Collect scrapes Prometheus metrics from libvirt.
