@@ -125,6 +125,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 
 	_,rmaxmem,rmemory,rvirCpu,rcputime,err := l.DomainGetInfo(*domain)
 	if err != nil {
+		log.Fatalf("failed to get domainInfo: %v",err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(
@@ -155,6 +156,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		}
 		rRdReq, rRdBytes, rWrReq, rWrBytes, _, err :=l.DomainBlockStats(*domain,disk.Target.Device)
 		if err != nil {
+			log.Fatalf("failed to get DomainBlockStats: %v",err)
 			return err
 		}
 
@@ -204,6 +206,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		}
 		rRxBytes, rRxPackets , rRxErrs , rRxDrop , rTxBytes , rTxPackets , rTxErrs , rTxDrop , err := l.DomainInterfaceStats(*domain,iface.Target.Device)
 		if err != nil {
+			log.Fatalf("failed to get DomainInterfaceStats: %v",err)
 			return err
 		}
 
@@ -295,6 +298,7 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	l := libvirt.New(conn)
 	if err := l.Connect(); err != nil {
 		log.Fatalf("failed to connect: %v", err)
+		return err
 	}
 
 	domains, err := l.Domains()
