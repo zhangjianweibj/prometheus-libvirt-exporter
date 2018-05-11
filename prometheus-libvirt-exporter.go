@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net"
-	_"flag"
+	"flag"
 	"time"
-	_"net/http"
+	"net/http"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus-libvirt-exporter/libvirt_schema"
@@ -312,11 +312,14 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	defer conn.Close()
 	l := libvirt.New(conn)
 	domains, err := l.Domains()
-	l.ConnectListAllDomains(10,0)
+
+	slices1,_,_ := l.ConnectListAllDomains(10,0)
+	fmt.Println("slices1:",slices1)
 	if err != nil {
 		fmt.Println("domain error:",err)
 		return err
 	}
+	fmt.Println("before for:")
 	for _,domain := range domains {
 		err = CollectDomain(ch, l, &domain)
 		l.DomainShutdown(domain)
@@ -325,7 +328,7 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 			return err
 		}
 	}
-
+	fmt.Println("after for:")
 	return nil
 }
 
@@ -377,7 +380,7 @@ func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func main() {
-/*	var (
+	var (
 		listenAddress = flag.String("web.listen-address", ":9177", "Address to listen on for web interface and telemetry.")
 		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 		libvirtURI    = flag.String("libvirt.uri", "/var/run/libvirt/libvirt-sock", "Libvirt URI from which to extract metrics.")
@@ -401,8 +404,8 @@ func main() {
 			</body>
 			</html>`))
 	})
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))*/
-	test()
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+
 }
 
 func test() {
