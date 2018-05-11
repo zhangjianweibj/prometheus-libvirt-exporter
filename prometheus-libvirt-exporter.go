@@ -209,7 +209,12 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		if iface.Target.Device == "" {
 			continue
 		}
-		rRxBytes, rRxPackets , rRxErrs , rRxDrop , rTxBytes , rTxPackets , rTxErrs , rTxDrop , err := l.DomainInterfaceStats(*domain,iface.Target.Device)
+		isActive, err := l.DomainIsActive(*domain)
+		var rRxBytes, rRxPackets , rRxErrs , rRxDrop , rTxBytes , rTxPackets , rTxErrs , rTxDrop int64
+		if isActive == 1 {
+			rRxBytes, rRxPackets , rRxErrs , rRxDrop , rTxBytes , rTxPackets , rTxErrs , rTxDrop , err = l.DomainInterfaceStats(*domain,iface.Target.Device)
+		}
+
 		if err != nil {
 			log.Fatalf("failed to get DomainInterfaceStats: %v",err)
 			return err
