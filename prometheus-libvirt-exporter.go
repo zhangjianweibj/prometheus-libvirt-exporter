@@ -154,7 +154,12 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		if disk.Device == "cdrom" || disk.Device == "fd" {
 			continue
 		}
-		rRdReq, rRdBytes, rWrReq, rWrBytes, _, err :=l.DomainBlockStats(*domain,disk.Target.Device)
+
+		isActive, err := l.DomainIsActive(*domain)
+		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
+		if isActive == 1 {
+			rRdReq, rRdBytes, rWrReq, rWrBytes, _, err =l.DomainBlockStats(*domain,disk.Target.Device)
+		}
 		if err != nil {
 			log.Fatalf("failed to get DomainBlockStats: %v",err)
 			return err
