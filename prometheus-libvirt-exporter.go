@@ -27,22 +27,22 @@ var (
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
-		[]string{"domain"},
+		[]string{"instancename"},
 		nil)
 	libvirtDomainInfoMemoryDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "memory_usage_bytes"),
 		"Memory usage of the domain, in bytes.",
-		[]string{"domain"},
+		[]string{"instancename"},
 		nil)
 	libvirtDomainInfoNrVirtCpuDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
-		[]string{"domain"},
+		[]string{"instancename"},
 		nil)
 	libvirtDomainInfoCpuTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "cpu_time_seconds_total"),
 		"Amount of CPU time used by the domain, in seconds.",
-		[]string{"domain"},
+		[]string{"instancename"},
 		nil)
 
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
