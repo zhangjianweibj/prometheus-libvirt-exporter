@@ -305,13 +305,14 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	conn,err := net.DialTimeout("unix",uri,5*time.Second)
 
 	if err != nil {
+		fmt.Println("conn error:",err)
 		return err
 	}
 	defer conn.Close()
 	l := libvirt.New(conn)
-
 	domains, err := l.Domains()
 	if err != nil {
+		fmt.Println("domain error:",err)
 		return err
 	}
 	for _,domain := range domains {
@@ -352,6 +353,7 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainBlockWrBytesDesc
 	ch <- libvirtDomainBlockWrReqDesc
 
+
 }
 
 // Collect scrapes Prometheus metrics from libvirt.
@@ -375,7 +377,7 @@ func main() {
 	var (
 		listenAddress = flag.String("web.listen-address", ":9177", "Address to listen on for web interface and telemetry.")
 		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		libvirtURI    = flag.String("libvirt.uri", "/var/run/libvirt/libvirt-sock", "Libvirt URI from which to extract metrics.")
+		libvirtURI    = flag.String("libvirt.uri", "qemu:///system", "Libvirt URI from which to extract metrics.")
 	)
 	flag.Parse()
 
