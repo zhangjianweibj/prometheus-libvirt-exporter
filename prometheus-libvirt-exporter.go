@@ -115,16 +115,16 @@ var (
 		[]string{"domainName", "instanceName", "instanceId", "source_bridge", "target_device"},
 		nil)
 
-	domainState = map[DomainState]string{
-		DOMAIN_NOSTATE:"no state",
-		DOMAIN_RUNNING:"the domain is running",
-		DOMAIN_BLOCKED:"the domain is blocked on resource",
-		DOMAIN_PAUSED:"the domain is paused by user",
-		DOMAIN_SHUTDOWN:"the domain is being shut down",
-		DOMAIN_SHUTOFF:"the domain is shut off",
-		DOMAIN_CRASHED:"the domain is crashed",
-		DOMAIN_PMSUSPENDED:"the domain is suspended by guest power management",
-		DOMAIN_LAST:"this enum value will increase over time as new events are added to the libvirt API",
+	domainState = map[libvirt_schema.DomainState]string{
+		libvirt_schema.DOMAIN_NOSTATE:"no state",
+		libvirt_schema.DOMAIN_RUNNING:"the domain is running",
+		libvirt_schema.DOMAIN_BLOCKED:"the domain is blocked on resource",
+		libvirt_schema.DOMAIN_PAUSED:"the domain is paused by user",
+		libvirt_schema.DOMAIN_SHUTDOWN:"the domain is being shut down",
+		libvirt_schema.DOMAIN_SHUTOFF:"the domain is shut off",
+		libvirt_schema.DOMAIN_CRASHED:"the domain is crashed",
+		libvirt_schema.DOMAIN_PMSUSPENDED:"the domain is suspended by guest power management",
+		libvirt_schema.DOMAIN_LAST:"this enum value will increase over time as new events are added to the libvirt API",
 	}
 )
 
@@ -151,7 +151,7 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 		libvirtDomainState,
 		prometheus.GaugeValue,
 		float64(rState),
-		domainName, instanceName, instanceId,domainState[DomainState(rState)])
+		domainName, instanceName, instanceId,domainState[libvirt_schema.DomainState(rState)])
 
 	if err != nil {
 		log.Fatalf("failed to get domainInfo: %v", err)

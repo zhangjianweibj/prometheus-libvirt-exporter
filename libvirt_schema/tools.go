@@ -1,8 +1,7 @@
-package main
+package libvirt_schema
 
 type DomainState uint8
 const (
-	
 	//no state
 	DOMAIN_NOSTATE     = DomainState(0)
 	//the domain is running
