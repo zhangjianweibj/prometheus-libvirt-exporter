@@ -128,8 +128,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 	instanceName := libvirtSchema.Metadata.NovaInstance.Name
 	instanceId := libvirtSchema.UUID
 
-	_, rmaxmem, rmemory, rvirCpu, rcputime, err := l.DomainGetInfo(*domain)
-
+	rState, rmaxmem, rmemory, rvirCpu, rcputime, err := l.DomainGetInfo(*domain)
+	log.Fatal("rState:",rState)
 	if err != nil {
 		log.Fatalf("failed to get domainInfo: %v", err)
 		return err
