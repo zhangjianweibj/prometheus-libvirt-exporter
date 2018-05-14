@@ -123,7 +123,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 
 	domainName := domain.Name
 	instanceName := libvirtSchema.Metadata.NovaInstance.Name
-	instanceId := domain.UUID
+	instanceId := libvirtSchema.UUID
 
 	_,rmaxmem,rmemory,rvirCpu,rcputime,err := l.DomainGetInfo(*domain)
 	res, _ := l.DomainGetMetadata(*domain,2, []string{"http://openstack.org/xmlns/libvirt/nova/1.0"},0)
@@ -136,7 +136,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		libvirtDomainInfoMaxMemDesc,
 		prometheus.GaugeValue,
 		float64(rmaxmem)*1024,
-		domainName,instanceName, string(instanceId[:]))
+		domainName,instanceName, instanceId)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoMemoryDesc,
 		prometheus.GaugeValue,
