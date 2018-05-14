@@ -23,86 +23,86 @@ var (
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
-		[]string{"instanceName","instanceId"},
+		[]string{"domainName","instanceName","instanceId"},
 		nil)
 	libvirtDomainInfoMemoryDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "memory_usage_bytes"),
 		"Memory usage of the domain, in bytes.",
-		[]string{"instanceName"},
+		[]string{"domainName","instanceName","instanceId"},
 		nil)
 	libvirtDomainInfoNrVirtCpuDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
-		[]string{"instanceName"},
+		[]string{"domainName","instanceName","instanceId"},
 		nil)
 	libvirtDomainInfoCpuTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "cpu_time_seconds_total"),
 		"Amount of CPU time used by the domain, in seconds.",
-		[]string{"instanceName"},
+		[]string{"domainName","instanceName","instanceId"},
 		nil)
 
 
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_bytes_total"),
 		"Number of bytes read from a block device, in bytes.",
-		[]string{"domain", "source_file", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_file", "target_device"},
 		nil)
 	libvirtDomainBlockRdReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_requests_total"),
 		"Number of read requests from a block device.",
-		[]string{"domain", "source_file", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_file", "target_device"},
 		nil)
 	libvirtDomainBlockWrBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_bytes_total"),
 		"Number of bytes written from a block device, in bytes.",
-		[]string{"domain", "source_file", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_file", "target_device"},
 		nil)
 	libvirtDomainBlockWrReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_requests_total"),
 		"Number of write requests from a block device.",
-		[]string{"domain", "source_file", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_file", "target_device"},
 		nil)
 
 	//DomainInterface
 	libvirtDomainInterfaceRxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_bytes_total"),
 		"Number of bytes received on a network interface, in bytes.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceRxPacketsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_packets_total"),
 		"Number of packets received on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceRxErrsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_errors_total"),
 		"Number of packet receive errors on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceRxDropDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_drops_total"),
 		"Number of packet receive drops on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceTxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_bytes_total"),
 		"Number of bytes transmitted on a network interface, in bytes.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceTxPacketsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_packets_total"),
 		"Number of packets transmitted on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceTxErrsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_errors_total"),
 		"Number of packet transmit errors on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 	libvirtDomainInterfaceTxDropDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_drops_total"),
 		"Number of packet transmit drops on a network interface.",
-		[]string{"domain", "source_bridge", "target_device"},
+		[]string{"domainName","instanceName","instanceId", "source_bridge", "target_device"},
 		nil)
 )
 
@@ -121,9 +121,13 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		return err
 	}
 
-	domainName := libvirtSchema.Metadata.NovaInstance.NovaName
+	domainName := domain.Name
+	instanceName := libvirtSchema.Metadata.NovaInstance.Name
+	instanceId := domain.UUID
 
 	_,rmaxmem,rmemory,rvirCpu,rcputime,err := l.DomainGetInfo(*domain)
+	res, _ := l.DomainGetMetadata(*domain,2, []string{"http://openstack.org/xmlns/libvirt/nova/1.0"},0)
+	fmt.Println("metadata",res)
 	if err != nil {
 		log.Fatalf("failed to get domainInfo: %v",err)
 		return err
@@ -132,22 +136,22 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 		libvirtDomainInfoMaxMemDesc,
 		prometheus.GaugeValue,
 		float64(rmaxmem)*1024,
-		domainName,libvirtSchema.UUID)
+		domainName,instanceName, string(instanceId[:]))
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoMemoryDesc,
 		prometheus.GaugeValue,
 		float64(rmemory)*1024,
-		domainName)
+		domainName,instanceName, string(instanceId[:]))
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoNrVirtCpuDesc,
 		prometheus.GaugeValue,
 		float64(rvirCpu),
-		domainName)
+		domainName,instanceName, string(instanceId[:]))
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoCpuTimeDesc,
 		prometheus.CounterValue,
 		float64(rcputime)/1e9,
-		domainName)
+		domainName,instanceName, string(instanceId[:]))
 
 	// Report block device statistics.
 	for _, disk := range libvirtSchema.Devices.Disks {
@@ -170,7 +174,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainBlockRdBytesDesc,
 			prometheus.CounterValue,
 			float64(rRdBytes),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			disk.Source.File,
 			disk.Target.Device)
 
@@ -179,7 +183,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainBlockRdReqDesc,
 			prometheus.CounterValue,
 			float64(rRdReq),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			disk.Source.File,
 			disk.Target.Device)
 
@@ -189,7 +193,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainBlockWrBytesDesc,
 			prometheus.CounterValue,
 			float64(rWrBytes),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			disk.Source.File,
 			disk.Target.Device)
 
@@ -198,7 +202,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainBlockWrReqDesc,
 			prometheus.CounterValue,
 			float64(rWrReq),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			disk.Source.File,
 			disk.Target.Device)
 
@@ -224,7 +228,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceRxBytesDesc,
 			prometheus.CounterValue,
 			float64(rRxBytes),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -232,7 +236,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceRxPacketsDesc,
 			prometheus.CounterValue,
 			float64(rRxPackets),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -240,7 +244,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceRxErrsDesc,
 			prometheus.CounterValue,
 			float64(rRxErrs),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -249,7 +253,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceRxDropDesc,
 			prometheus.CounterValue,
 			float64(rRxDrop),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -258,7 +262,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceTxBytesDesc,
 			prometheus.CounterValue,
 			float64(rTxBytes),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -267,7 +271,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceTxPacketsDesc,
 			prometheus.CounterValue,
 			float64(rTxPackets),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -276,7 +280,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceTxErrsDesc,
 			prometheus.CounterValue,
 			float64(rTxErrs),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
@@ -284,7 +288,7 @@ func CollectDomain(ch chan<- prometheus.Metric,l *libvirt.Libvirt, domain *libvi
 			libvirtDomainInterfaceTxDropDesc,
 			prometheus.CounterValue,
 			float64(rTxDrop),
-			domainName,
+			domainName,instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
 			iface.Target.Device)
 
