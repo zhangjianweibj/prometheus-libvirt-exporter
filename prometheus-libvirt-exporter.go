@@ -25,6 +25,12 @@ var (
 		nil,
 		nil)
 
+	libvirtDomainState = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt","","domain_state_code"),
+		"code of the domain state",
+		[]string{"domainName", "instanceName", "instanceId","stateDesc"},
+		nil)
+
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
@@ -108,6 +114,18 @@ var (
 		"Number of packet transmit drops on a network interface.",
 		[]string{"domainName", "instanceName", "instanceId", "source_bridge", "target_device"},
 		nil)
+
+	domainState = map[DomainState]string{
+		DOMAIN_NOSTATE:"no state",
+		DOMAIN_RUNNING:"the domain is running",
+		DOMAIN_BLOCKED:"the domain is blocked on resource",
+		DOMAIN_PAUSED:"the domain is paused by user",
+		DOMAIN_SHUTDOWN:"the domain is being shut down",
+		DOMAIN_SHUTOFF:"the domain is shut off",
+		DOMAIN_CRASHED:"the domain is crashed",
+		DOMAIN_PMSUSPENDED:"the domain is suspended by guest power management",
+		DOMAIN_LAST:"this enum value will increase over time as new events are added to the libvirt API",
+	}
 )
 
 // CollectDomain extracts Prometheus metrics from a libvirt domain.
@@ -129,7 +147,12 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 	instanceId := libvirtSchema.UUID
 
 	rState, rmaxmem, rmemory, rvirCpu, rcputime, err := l.DomainGetInfo(*domain)
-	log.Fatal("rState:",rState)
+	ch <- prometheus.MustNewConstMetric(
+		libvirtDomainState,
+		prometheus.GaugeValue,
+		float64(rState),
+		domainName, instanceName, instanceId,domainState[DomainState(rState)])
+
 	if err != nil {
 		log.Fatalf("failed to get domainInfo: %v", err)
 		return err
@@ -350,6 +373,7 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainNumbers
 
 	//domain info
+	ch <- libvirtDomainState
 	ch <- libvirtDomainInfoMaxMemDesc
 	ch <- libvirtDomainInfoMemoryDesc
 	ch <- libvirtDomainInfoNrVirtCpuDesc
