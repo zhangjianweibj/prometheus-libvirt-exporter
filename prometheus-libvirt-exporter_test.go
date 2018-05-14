@@ -156,8 +156,8 @@ func TestUnmarshal(t *testing.T) {
 	if err!= nil {
 		fmt.Println(err, r)
 	}
-	assert.Equal(nil,r.Metadata.NovaInstance.NovaName,"LqnyzNfe")
+	assert.Equal(nil,r.Metadata.NovaInstance.Name,"LqnyzNfe")
 	fmt.Printf("xml name=%v\n", r.Metadata.NovaInstance.XMLName)
-	fmt.Printf("nova name=%v\n", r.Metadata.NovaInstance.NovaName)
+	fmt.Printf("nova name=%v\n", r.Metadata.NovaInstance.Name)
 
 }
