@@ -21,7 +21,8 @@ var (
 
 	libvirtDomainNumbers = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt","","domains_number"),
-		"number of the domain",[]string{"number"},
+		"number of the domain",
+		nil,
 		nil)
 
 	libvirtDomainInfoMaxMemDesc = prometheus.NewDesc(
