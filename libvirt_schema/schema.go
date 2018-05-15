@@ -15,7 +15,7 @@ type Metadata struct {
 
 type NovaInstance struct {
 	XMLName xml.Name `xml:"instance"`
-	NovaName string `xml:"name"`
+	Name string `xml:"name"`
 }
 
 type Devices struct {
