@@ -16,7 +16,7 @@ var (
 	libvirtUpDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "", "up"),
 		"Whether scraping libvirt's metrics was successful.",
-		nil,
+		[]string{"host"},
 		nil)
 
 	libvirtDomainNumbers = prometheus.NewDesc(
@@ -430,13 +430,15 @@ func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(
 			libvirtUpDesc,
 			prometheus.GaugeValue,
-			1.0)
+			1.0,
+			"ocata-107.iop.com")
 	} else {
 		log.Printf("Failed to scrape metrics: %s", err)
 		ch <- prometheus.MustNewConstMetric(
 			libvirtUpDesc,
 			prometheus.GaugeValue,
-			0.0)
+			0.0,
+			"ocata-107.iop.com")
 	}
 }
 
