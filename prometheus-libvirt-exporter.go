@@ -336,7 +336,6 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 // libvirt setup.
 func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	conn, err := net.DialTimeout("unix", uri, 5*time.Second)
-
 	if err != nil {
 		log.Fatalf("failed to dial libvirt: %v", err)
 		return err
@@ -344,20 +343,26 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	defer conn.Close()
 
 	l := libvirt.New(conn)
-	if err := l.Connect(); err != nil {
+	if err = l.Connect(); err != nil {
 		log.Fatalf("failed to connect: %v", err)
-		return err
-	}
-
-	domains, err := l.Domains()
-	if err != nil {
-		log.Fatalf("failed to load domain: %v", err)
 		return err
 	}
 
 	host, err := l.ConnectGetHostname()
 	if err != nil {
 		log.Fatalf("failed to get hostname: %v", err)
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(
+		libvirtUpDesc,
+		prometheus.GaugeValue,
+		1.0,
+		host)
+
+	domains, err := l.Domains()
+	if err != nil {
+		log.Fatalf("failed to load domain: %v", err)
 		return err
 	}
 
@@ -425,21 +430,7 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
-	err := CollectFromLibvirt(ch, e.uri)
-	if err == nil {
-		ch <- prometheus.MustNewConstMetric(
-			libvirtUpDesc,
-			prometheus.GaugeValue,
-			1.0,
-			"ocata-107.iop.com")
-	} else {
-		log.Printf("Failed to scrape metrics: %s", err)
-		ch <- prometheus.MustNewConstMetric(
-			libvirtUpDesc,
-			prometheus.GaugeValue,
-			0.0,
-			"ocata-107.iop.com")
-	}
+	CollectFromLibvirt(ch, e.uri)
 }
 
 func main() {
