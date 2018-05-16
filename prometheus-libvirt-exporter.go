@@ -261,7 +261,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rRxBytes),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceRxPacketsDesc,
@@ -269,7 +270,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rRxPackets),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceRxErrsDesc,
@@ -277,7 +279,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rRxErrs),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceRxDropDesc,
@@ -285,7 +288,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rRxDrop),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceTxBytesDesc,
@@ -293,7 +297,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rTxBytes),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceTxPacketsDesc,
@@ -301,7 +306,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rTxPackets),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceTxErrsDesc,
@@ -309,7 +315,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rTxErrs),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainInterfaceTxDropDesc,
@@ -317,7 +324,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			float64(rTxDrop),
 			domainName, instanceName, string(instanceId[:]),
 			iface.Source.Bridge,
-			iface.Target.Device)
+			iface.Target.Device,
+			host)
 
 	}
 
