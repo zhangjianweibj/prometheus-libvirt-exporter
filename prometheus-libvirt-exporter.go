@@ -347,12 +347,19 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 		return err
 	}
 
+	host, err := l.ConnectGetHostname()
+	if err != nil {
+		log.Fatalf("failed to get hostname: %v", err)
+		return err
+	}
+
 	//domains number
 	domainNumber := len(domains)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainNumbers,
 		prometheus.GaugeValue,
-		float64(domainNumber))
+		float64(domainNumber),
+		host)
 
 	for _, domain := range domains {
 		err = CollectDomain(ch, l, &domain)
