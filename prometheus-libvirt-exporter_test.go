@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 	"github.com/stretchr/testify/assert"
-	libvirt_schema "github.com/prometheus-libvirt-exporter/libvirt_schema"
+	libvirt_schema "github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
 )
 
 func init()  {

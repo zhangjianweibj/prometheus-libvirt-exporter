@@ -41,3 +41,14 @@ transmit_bytes_total|Number of bytes transmitted on a network interface, in byte
 transmit_packets_total|Number of packets transmitted on a network interface
 transmit_errors_total|Number of packet transmit errors on a network interface
 transmit_drops_total|Number of packet transmit drops on a network interface
+
+
+##Example
+# TYPE libvirt_domain_state_code gauge
+libvirt_domain_state_code{domainName="instance-00000126",instanceId="4a50e208-eb6d-4a6e-904b-f9d9ef4ec483",instanceName="test",stateDesc="the domain is shut off"} 5
+libvirt_domain_state_code{domainName="instance-00000157",instanceId="cee27a5f-278f-4f1c-b6b8-3d0879834cd1",instanceName="AWvlZ9qA-DRDSSingle-FeqKU6N4",stateDesc="the domain is shut off"} 5
+libvirt_domain_state_code{domainName="instance-0000016c",instanceId="821e161e-ab48-41ba-914c-7febca28cb76",instanceName="aXdazRlV-ESCluster-d8MwUMzB",stateDesc="the domain is shut off"} 5
+libvirt_domain_state_code{domainName="instance-00000192",instanceId="3f403d75-85fe-4965-9d37-dcfbfd06482f",instanceName="wrDCxC5p",stateDesc="the domain is running"} 1
+libvirt_domain_state_code{domainName="instance-0000021a",instanceId="9bcd4f1f-a02f-47bc-bebc-600f0a798be1",instanceName="like",stateDesc="the domain is shut off"} 5
+libvirt_domain_state_code{domainName="instance-0000021c",instanceId="2687aba1-f86e-4370-8993-b652234fc102",instanceName="KKAQH52k",stateDesc="the domain is shut off"} 5
+libvirt_domain_state_code{domainName="instance-0000021d",instanceId="c86e3187-8f35-4256-9995-9e4dc3cd696f",instanceName="RF8aueUv",stateDesc="the domain is shut off"} 5
