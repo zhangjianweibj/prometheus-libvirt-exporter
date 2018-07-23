@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"github.com/digitalocean/go-libvirt"
-	"github.com/prometheus-libvirt-exporter/libvirt_schema"
+	"github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
 	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"net"
