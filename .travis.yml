@@ -2,7 +2,3 @@ language: go
 
 go:
   - "1.10.x"
-
-before_install:
-  - cp .netrc ~
-  - chmod 600 .netrc
