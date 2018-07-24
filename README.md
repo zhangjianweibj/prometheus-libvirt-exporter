@@ -3,7 +3,7 @@ prometheus-libvirt-exporter for host and vm metrics exposed for prometheus, writ
 By default, this exporter listens on TCP port 9000,Path '/metrics',to expose metrics.
 
 [![Build Status](https://travis-ci.org/zhangjianweibj/prometheus-libvirt-exporter.svg?branch=master)](https://travis-ci.org/zhangjianweibj/prometheus-libvirt-exporter)
-
+[![codecov](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter)
 # Building and running
 
 1.install go dep
