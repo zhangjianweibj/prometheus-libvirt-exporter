@@ -3,13 +3,13 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
-	"testing"
 	"github.com/stretchr/testify/assert"
 	libvirt_schema "github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
+	"testing"
 )
 
-func init()  {
-	
+func init() {
+
 }
 
 //go lang bug ,1.9 bug still alive
@@ -18,7 +18,6 @@ https://www.oschina.net/question/203177_2213070
 https://www.oschina.net/question/203177_2213070
 
 **/
-
 
 func TestUnmarshal(t *testing.T) {
 	var (
@@ -151,13 +150,13 @@ func TestUnmarshal(t *testing.T) {
     `
 	)
 
-	r := libvirt_schema.Domain {}
+	r := libvirt_schema.Domain{}
 	err := xml.Unmarshal([]byte(str), &r)
-	if err!= nil {
+	if err != nil {
 		fmt.Println(err, r)
 	}
-	assert.Equal(nil,r.Metadata.NovaInstance.Name,"LqnyzNfe")
-	fmt.Printf("xml name=%v\n", r.Metadata.NovaInstance.XMLName)
-	fmt.Printf("nova name=%v\n", r.Metadata.NovaInstance.Name)
-
+	assert.Equal(nil, r.Metadata.NovaInstance.Name, "LqnyzNfe")
+	fmt.Printf("xml name=%#v\n", r.Metadata.NovaInstance.XMLName)
+	fmt.Printf("nova name=%#v\n", r.Metadata.NovaInstance.Name)
+	fmt.Printf("nova =%#v\n", r.Metadata)
 }

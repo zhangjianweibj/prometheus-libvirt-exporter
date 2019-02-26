@@ -3,9 +3,9 @@ package libvirt_schema
 import "encoding/xml"
 
 type Domain struct {
-	Devices Devices `xml:"devices"`
-	Name string `xml:"name"`
-	UUID string `xml:"uuid"`
+	Devices  Devices  `xml:"devices"`
+	Name     string   `xml:"name"`
+	UUID     string   `xml:"uuid"`
 	Metadata Metadata `xml:"metadata"`
 }
 
@@ -14,8 +14,25 @@ type Metadata struct {
 }
 
 type NovaInstance struct {
-	XMLName xml.Name `xml:"instance"`
-	Name string `xml:"name"`
+	XMLName xml.Name  `xml:"instance"`
+	Name    string    `xml:"name"`
+	Owner   NovaOwner `xml:"owner"`
+}
+
+type NovaOwner struct {
+	XMLName xml.Name    `xml:"owner"`
+	User    NovaUser    `xml:"user"`
+	Project NovaProject `xml:"project"`
+}
+
+type NovaUser struct {
+	UserId   string `xml:"uuid,attr"`
+	UserName string `xml:",chardata"`
+}
+
+type NovaProject struct {
+	ProjectId   string `xml:"uuid,attr"`
+	ProjectName string `xml:",chardata"`
 }
 
 type Devices struct {
