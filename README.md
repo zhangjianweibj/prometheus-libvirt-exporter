@@ -24,8 +24,8 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 ## metrics
 Name | Label |Description
 ---------|---------|-------------
-up|host|scraping libvirt's metrics state
-domains_number|host|get number of domains
+up|"host"|scraping libvirt's metrics state
+domains_number|"host"|get number of domains
 domain_state_code|"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "stateDesc", "host"|code of the domain state,include state description
 maximum_memory_bytes|"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"|Maximum allowed memory of the domain, in bytes
 memory_usage_bytes|"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"|Memory usage of the domain, in bytes
