@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
 	"log"
 	"net"
@@ -464,7 +465,7 @@ func main() {
 	}
 	prometheus.MustRegister(exporter)
 
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`
 			<html>
