@@ -6,6 +6,9 @@ arg LIBVIRT_BRANCH=master
 
 env GOPATH=/go
 
+run apk add --no-cache \
+        git
+
 run mkdir -p $GOPATH/src/github.com/zhangjianweibj/prometheus-libvirt-exporter && \
   cd $GOPATH/src/github.com/zhangjianweibj/prometheus-libvirt-exporter && \
   git init && \
