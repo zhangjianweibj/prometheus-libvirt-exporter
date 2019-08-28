@@ -6,15 +6,20 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 [![codecov](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter)
 # Building and running
 
-1.install go dep
+## use go dep
+1. install go dep
 
-2.cp $GOPATH/bin/dep /usr/bin/
+2. cp $GOPATH/bin/dep /usr/bin/
 
-3.dep ensure
+3. dep ensure
 
-4.go build prometheus-libvirt-exporter.go
+4. go build prometheus-libvirt-exporter.go
 
-5../prometheus-libvirt-exporter
+5. ./prometheus-libvirt-exporter
+
+## use go mod tool
+1. go build prometheus-libvirt-exporter.go 
+2. ./prometheus-libvirt-exporter
 
 ## To see all available configuration flags:
 
