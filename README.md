@@ -6,7 +6,7 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 [![codecov](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter)
 # Building and running
 
-## use go dep
+## use go dep(depressed)
 1. install go dep
 
 2. cp $GOPATH/bin/dep /usr/bin/
