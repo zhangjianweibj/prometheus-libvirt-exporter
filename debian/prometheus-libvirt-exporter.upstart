@@ -1,0 +1,15 @@
+description "Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+script
+   echo $$ > /var/run/prometheus-libvirt-exporter.pid
+   exec prometheus-libvirt-exporter -web.listen-address ":9180"
+end script
+
+post-stop script
+    rm -f /var/run/prometheus-libvirt-exporter.pid
+end script

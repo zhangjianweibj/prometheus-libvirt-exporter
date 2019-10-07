@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/prometheus-libvirt-exporter -web.listen-address ":9180"
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
