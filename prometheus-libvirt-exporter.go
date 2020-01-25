@@ -367,6 +367,8 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 		return err
 	}
 
+	defer l.Disconnect()
+
 	host, err := l.ConnectGetHostname()
 	if err != nil {
 		log.Fatalf("failed to get hostname: %v", err)
