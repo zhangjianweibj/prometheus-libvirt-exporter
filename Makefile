@@ -17,6 +17,12 @@ build_linux:
 build:
 	$(GO_BUILD) -o build/prometheus-libvirt-exporter ./prometheus-libvirt-exporter.go
 
+release: build
+	mkdir prometheus_libvirt_exporter-$(APPLICATION_VERSION).linux-amd64
+	cp build/prometheus-libvirt-exporter prometheus_libvirt_exporter-$(APPLICATION_VERSION).linux-amd64/prometheus_libvirt_exporter
+	tar cvzf build/prometheus_libvirt_exporter-$(APPLICATION_VERSION).linux-amd64.tar.gz prometheus_libvirt_exporter-$(APPLICATION_VERSION).linux-amd64
+	rm -rf prometheus_libvirt_exporter-$(APPLICATION_VERSION).linux-amd64
+
 clean:
 	go clean -v .
 	rm -rf build
