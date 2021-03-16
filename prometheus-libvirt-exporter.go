@@ -42,15 +42,14 @@ var (
 		"Memory usage of the domain, in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
-	/*-- domain stat --*/
 	libvirtDomainStatMemorySwapInBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_stat", "memory_swap_in_bytes"),
-		"Memory swap in of the domain, in bytes.",
+		"Memory swap in of domain(the total amount of data read from swap space), in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
 	libvirtDomainStatMemorySwapOutBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_stat", "memory_swap_out_bytes"),
-		"Memory swap out of the domain, in bytes.",
+		"Memory swap out of the domain(the total amount of memory written out to swap space), in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
 	libvirtDomainStatMemoryUnusedBytesDesc = prometheus.NewDesc(
@@ -65,15 +64,14 @@ var (
 		nil)
 	libvirtDomainStatMemoryUsableBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_stat", "memory_usable_bytes"),
-		"Memory usable of the domain, in bytes.",
+		"Memory usable of the domain(corresponds to 'Available' in /proc/meminfo), in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
 	libvirtDomainStatMemoryRssBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_stat", "memory_rss_bytes"),
-		"Memory rss of the domain, in bytes.",
+		"Resident Set Size of the process running the domain, in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
-	/*-- domain stat --*/
 	libvirtDomainInfoNrVirtCpuDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
