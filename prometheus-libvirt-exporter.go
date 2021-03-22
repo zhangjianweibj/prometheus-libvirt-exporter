@@ -221,7 +221,20 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 		float64(rcputime)/1e9,
 		domainName, instanceName, string(instanceId[:]), userName, userId, projectName, projectId, host)
 
-	rStats, err := l.DomainMemoryStats(*domain, uint32(libvirt.DomainMemoryStatNr), 0)
+	//collect stat info
+	var rStats []libvirt.DomainMemoryStat
+
+	isActive, err := l.DomainIsActive(*domain)
+	if err != nil {
+		log.Fatalf("failed to get active status of domain %s : %v", domain.Name, err)
+		return err
+	}
+	if isActive != 1 {
+		log.Printf("domain %s is not active", domain.Name)
+		goto CollectEnd
+	}
+
+	rStats, err = l.DomainMemoryStats(*domain, uint32(libvirt.DomainMemoryStatNr), 0)
 	if err != nil {
 		log.Fatalf("failed to get domainstat: %v", err)
 		return err
@@ -278,11 +291,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 			continue
 		}
 
-		isActive, err := l.DomainIsActive(*domain)
 		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
-		if isActive == 1 {
-			rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(*domain, disk.Target.Device)
-		}
+		rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(*domain, disk.Target.Device)
 
 		if err != nil {
 			log.Fatalf("failed to get DomainBlockStats: %v", err)
@@ -336,11 +346,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 		if iface.Target.Device == "" {
 			continue
 		}
-		isActive, err := l.DomainIsActive(*domain)
 		var rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop int64
-		if isActive == 1 {
-			rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(*domain, iface.Target.Device)
-		}
+		rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(*domain, iface.Target.Device)
 
 		if err != nil {
 			log.Fatalf("failed to get DomainInterfaceStats: %v", err)
@@ -429,6 +436,7 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 
 	}
 
+CollectEnd:
 	return nil
 }
 
