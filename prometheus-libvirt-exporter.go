@@ -42,6 +42,36 @@ var (
 		"Memory usage of the domain, in bytes.",
 		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
+	libvirtDomainStatMemorySwapInBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_swap_in_bytes"),
+		"Memory swap in of domain(the total amount of data read from swap space), in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
+	libvirtDomainStatMemorySwapOutBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_swap_out_bytes"),
+		"Memory swap out of the domain(the total amount of memory written out to swap space), in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
+	libvirtDomainStatMemoryUnusedBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_unused_bytes"),
+		"Memory unused of the domain, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
+	libvirtDomainStatMemoryAvailableInBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_available_bytes"),
+		"Memory available of the domain, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
+	libvirtDomainStatMemoryUsableBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_usable_bytes"),
+		"Memory usable of the domain(corresponds to 'Available' in /proc/meminfo), in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
+	libvirtDomainStatMemoryRssBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_stat", "memory_rss_bytes"),
+		"Resident Set Size of the process running the domain, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "userName", "userId", "projectName", "projectId", "host"},
+		nil)
 	libvirtDomainInfoNrVirtCpuDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
@@ -191,17 +221,78 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 		float64(rcputime)/1e9,
 		domainName, instanceName, string(instanceId[:]), userName, userId, projectName, projectId, host)
 
+	//collect stat info
+	var rStats []libvirt.DomainMemoryStat
+
+	isActive, err := l.DomainIsActive(*domain)
+	if err != nil {
+		log.Fatalf("failed to get active status of domain %s : %v", domain.Name, err)
+		return err
+	}
+	if isActive != 1 {
+		log.Printf("domain %s is not active", domain.Name)
+		goto CollectEnd
+	}
+
+	rStats, err = l.DomainMemoryStats(*domain, uint32(libvirt.DomainMemoryStatNr), 0)
+	if err != nil {
+		log.Fatalf("failed to get domainstat: %v", err)
+		return err
+	}
+	for _, stat := range rStats {
+		switch stat.Tag {
+		case int32(libvirt.DomainMemoryStatSwapIn):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemorySwapInBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val)*1024,
+				domainName, instanceName, instanceId, userName, userId, projectName, projectName, host)
+			break
+		case int32(libvirt.DomainMemoryStatSwapOut):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemorySwapOutBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val)*1024,
+				domainName, instanceName, instanceId, userName, userId, projectName, projectId, host)
+			break
+		case int32(libvirt.DomainMemoryStatUnused):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemoryUnusedBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val*1024),
+				domainName, instanceName, instanceId, userName, userId, projectName, projectId, host)
+			break
+		case int32(libvirt.DomainMemoryStatAvailable):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemoryAvailableInBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val*1024),
+				domainName, instanceName, instanceId, userName, userId, projectName, projectId, host)
+			break
+		case int32(libvirt.DomainMemoryStatUsable):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemoryUsableBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val*1024),
+				domainName, instanceName, instanceId, userName, userId, projectName, projectId, host)
+			break
+		case int32(libvirt.DomainMemoryStatRss):
+			ch <- prometheus.MustNewConstMetric(
+				libvirtDomainStatMemoryRssBytesDesc,
+				prometheus.GaugeValue,
+				float64(stat.Val*1024),
+				domainName, instanceName, instanceId, userName, userId, projectName, projectId, host)
+		}
+	}
+
 	// Report block device statistics.
 	for _, disk := range libvirtSchema.Devices.Disks {
 		if disk.Device == "cdrom" || disk.Device == "fd" {
 			continue
 		}
 
-		isActive, err := l.DomainIsActive(*domain)
 		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
-		if isActive == 1 {
-			rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(*domain, disk.Target.Device)
-		}
+		rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(*domain, disk.Target.Device)
 
 		if err != nil {
 			log.Fatalf("failed to get DomainBlockStats: %v", err)
@@ -255,11 +346,8 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 		if iface.Target.Device == "" {
 			continue
 		}
-		isActive, err := l.DomainIsActive(*domain)
 		var rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop int64
-		if isActive == 1 {
-			rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(*domain, iface.Target.Device)
-		}
+		rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(*domain, iface.Target.Device)
 
 		if err != nil {
 			log.Fatalf("failed to get DomainInterfaceStats: %v", err)
@@ -348,6 +436,7 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain *libv
 
 	}
 
+CollectEnd:
 	return nil
 }
 
@@ -446,6 +535,13 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainInterfaceTxErrsDesc
 	ch <- libvirtDomainInterfaceTxDropDesc
 
+	//domain mem stat
+	ch <- libvirtDomainStatMemorySwapInBytesDesc
+	ch <- libvirtDomainStatMemorySwapOutBytesDesc
+	ch <- libvirtDomainStatMemoryUnusedBytesDesc
+	ch <- libvirtDomainStatMemoryAvailableInBytesDesc
+	ch <- libvirtDomainStatMemoryUsableBytesDesc
+	ch <- libvirtDomainStatMemoryRssBytesDesc
 }
 
 // Collect scrapes Prometheus metrics from libvirt.
