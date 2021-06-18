@@ -1,0 +1,55 @@
+project_name: prometheus-libvirt-exporter
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: prometheus-libvirt-exporter
+    dir: .
+    main: ./prometheus-libvirt-exporter.go
+    binary: prometheus-libvirt-exporter
+    flags:
+      - -v
+    ldflags:
+      - -w -s
+      - -X {{ .ProjectName }}/meta.Version={{ .Env.EXPORTER_VERSION }}
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+dockers:
+  - ids:
+      - prometheus-libvirt-exporter
+    image_templates:
+      - github.com/zhangjianweibj/{{ .ProjectName }}:{{ .Env.EXPORTER_VERSION }}
+    dockerfile: ./docker/Dockerfile
+    skip_push: true
+    build_flag_templates:
+      - "--build-arg=BINARY_NAME={{ .ProjectName }}"
+
+nfpms:
+  - id: "prometheus-libvirt-exporter"
+    package_name: "prometheus-libvirt-exporter"
+    file_name_template: prometheus-libvirt-exporter-{{ .Env.EXPORTER_VERSION }}.{{ .Arch }}
+    builds:
+      - prometheus-libvirt-exporter
+    replacements:
+      amd64: x86_64
+    maintainer: "zhangjianweibj"
+    description: |
+      Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)
+    homepage: "https://github.com/zhangjianweibj/prometheus-libvirt-exporter"
+    license: "MIT License"
+    formats:
+      - apk
+      - deb
+      - rpm
+    bindir: "/usr/bin"
+    priority: optional
+    contents:
+      - src: debian/prometheus-libvirt-exporter.service
+        dst: /etc/systemd/system/prometheus-libvirt-exporter.service
+
+      - src: debian/prometheus-libvirt-exporter.upstart
+        dst: /etc/init/prometheus-libvirt-exporter.conf

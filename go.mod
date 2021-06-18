@@ -1,6 +1,6 @@
 module github.com/zhangjianweibj/prometheus-libvirt-exporter
 
-go 1.12
+go 1.16
 
 require (
 	github.com/digitalocean/go-libvirt v0.0.0-20190715144809-7b622097a793

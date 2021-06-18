@@ -6,6 +6,11 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 [![codecov](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter)
 # Building and running
 
+## Requirements
+1. Gorelease: `go install github.com/goreleaser/goreleaser`
+
+2. Taskfile: `go install github.com/go-task/task/v3/cmd/task@latest`
+
 ## use go dep(depressed)
 1. install go dep
 
@@ -17,9 +22,10 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 
 5. ./prometheus-libvirt-exporter
 
-## use go mod tool
-1. go build prometheus-libvirt-exporter.go 
-2. ./prometheus-libvirt-exporter
+## Building
+1. Run `task build`
+
+2. Afterwards all packages, binaries and archives are available in the `dist/` folder
 
 ## To see all available configuration flags:
 
