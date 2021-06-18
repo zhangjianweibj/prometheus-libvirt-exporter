@@ -1,0 +1,14 @@
+version: "3"
+
+env:
+   EXPORTER_VERSION:
+     sh: cat VERSION
+
+tasks:
+  build:
+    desc: Build project
+    env:
+      EXPORTER_VERSION:
+        sh: cat VERSION
+    cmds:
+      - goreleaser release --rm-dist --snapshot
