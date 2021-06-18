@@ -3,14 +3,16 @@ package main
 import (
 	"encoding/xml"
 	"flag"
-	"github.com/digitalocean/go-libvirt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/digitalocean/go-libvirt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
 )
 
 var (
@@ -442,7 +444,7 @@ CollectEnd:
 
 // CollectFromLibvirt obtains Prometheus metrics from all domains in a
 // libvirt setup.
-func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
+func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.ConnectURI) error {
 	conn, err := net.DialTimeout("unix", uri, 5*time.Second)
 	if err != nil {
 		log.Fatalf("failed to dial libvirt: %v", err)
@@ -451,7 +453,7 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 	defer conn.Close()
 
 	l := libvirt.New(conn)
-	if err = l.Connect(); err != nil {
+	if err = l.ConnectToURI(driver); err != nil {
 		log.Fatalf("failed to connect: %v", err)
 		return err
 	}
@@ -470,7 +472,7 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 		1.0,
 		host)
 
-	domains, err := l.Domains()
+	domains, _, err := l.ConnectListAllDomains(1, 0)
 	if err != nil {
 		log.Fatalf("failed to load domain: %v", err)
 		return err
@@ -497,13 +499,15 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string) error {
 
 // LibvirtExporter implements a Prometheus exporter for libvirt state.
 type LibvirtExporter struct {
-	uri string
+	uri    string
+	driver libvirt.ConnectURI
 }
 
 // NewLibvirtExporter creates a new Prometheus exporter for libvirt.
-func NewLibvirtExporter(uri string) (*LibvirtExporter, error) {
+func NewLibvirtExporter(uri string, driver libvirt.ConnectURI) (*LibvirtExporter, error) {
 	return &LibvirtExporter{
-		uri: uri,
+		uri:    uri,
+		driver: driver,
 	}, nil
 }
 
@@ -546,18 +550,19 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
-	CollectFromLibvirt(ch, e.uri)
+	CollectFromLibvirt(ch, e.uri, e.driver)
 }
 
 func main() {
 	var (
 		listenAddress = flag.String("web.listen-address", ":9000", "Address to listen on for web interface and telemetry.")
 		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		libvirtURI    = flag.String("libvirt.uri", "/var/run/libvirt/libvirt-sock", "Libvirt URI from which to extract metrics.")
+		libvirtURI    = flag.String("libvirt.uri", "/var/run/libvirt/libvirt-sock-ro", "Libvirt URI from which to extract metrics.")
+		driver        = flag.String("libvirt.driver", string(libvirt.QEMUSystem), fmt.Sprintf("Available drivers: %s (Default), %s, %s and %s ", libvirt.QEMUSystem, libvirt.QEMUSession, libvirt.XenSystem, libvirt.TestDefault))
 	)
 	flag.Parse()
 
-	exporter, err := NewLibvirtExporter(*libvirtURI)
+	exporter, err := NewLibvirtExporter(*libvirtURI, libvirt.ConnectURI(*driver))
 	if err != nil {
 		panic(err)
 	}
