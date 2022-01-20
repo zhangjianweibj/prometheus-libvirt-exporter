@@ -86,7 +86,6 @@ var (
 		"Amount of CPU time used by the domain, in seconds.",
 		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
-
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_bytes_total"),
 		"Number of bytes read from a block device, in bytes.",
@@ -106,6 +105,21 @@ var (
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_requests_total"),
 		"Number of write requests from a block device.",
 		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "target_device"},
+		nil)
+	libvirtDomainBlockCapacity = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_block_info", "capacity"),
+		"how much storage the guest will see, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "source_rbd", "source_ceph_mon_host", "target_device"},
+		nil)
+	libvirtDomainBlockAllocation = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_block_info", "allocation"),
+		"host storage in bytes occupied by the image, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "source_rbd", "source_ceph_mon_host", "target_device"},
+		nil)
+	libvirtDomainBlockPhysical = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_block_info", "physical"),
+		"host physical size in bytes of the image container, in bytes.",
+		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "source_rbd", "source_ceph_mon_host", "target_device"},
 		nil)
 
 	//DomainInterface
@@ -353,6 +367,20 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 			return err
 		}
 
+		var rAllocation, rCapacity, rPhysical uint64
+		var Sname, Shost string
+		if rAllocation, rCapacity, rPhysical, err = l.DomainGetBlockInfo(domain.libvirtDomain, disk.Target.Device, 0); err != nil {
+			logger.Warn("failed to get DomainGetBlockInfo", zap.Error(err))
+			return err
+		}
+		if disk.Source.Name != "" {
+			Sname = disk.Source.Name
+		}
+
+		if disk.Source.Host != nil {
+			Shost = disk.Source.Host[0].Name
+		}
+
 		promDiskLabels := append(promLabels, disk.Source.File, disk.Target.Device)
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainBlockRdBytesDesc,
@@ -378,6 +406,28 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 			float64(rWrReq),
 			promDiskLabels...)
 
+		////block info
+		promBlockLabels := append(promLabels, disk.Source.File,
+			Sname,
+			Shost,
+			disk.Target.Device)
+		ch <- prometheus.MustNewConstMetric(
+			libvirtDomainBlockCapacity,
+			prometheus.GaugeValue,
+			float64(rCapacity),
+			promBlockLabels...)
+
+		ch <- prometheus.MustNewConstMetric(
+			libvirtDomainBlockAllocation,
+			prometheus.GaugeValue,
+			float64(rAllocation),
+			promBlockLabels...)
+
+		ch <- prometheus.MustNewConstMetric(
+			libvirtDomainBlockPhysical,
+			prometheus.GaugeValue,
+			float64(rPhysical),
+			promBlockLabels...)
 	}
 	return
 }
@@ -513,6 +563,11 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainBlockRdReqDesc
 	ch <- libvirtDomainBlockWrBytesDesc
 	ch <- libvirtDomainBlockWrReqDesc
+
+	//domain block info
+	ch <- libvirtDomainBlockCapacity
+	ch <- libvirtDomainBlockAllocation
+	ch <- libvirtDomainBlockPhysical
 
 	//domain interface
 	ch <- libvirtDomainInterfaceRxBytesDesc
