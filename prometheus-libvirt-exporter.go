@@ -348,9 +348,17 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 		}
 
 		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
+		var promDiskLabels []string
 		if rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(domain.libvirtDomain, disk.Target.Device); err != nil {
 			logger.Warn("failed to get DomainBlockStats", zap.Error(err))
 			return err
+		}
+
+		// check if we have block or fs backend
+		if len(disk.Source.File) > 0 {
+			promDiskLabels = append(promLabels, disk.Source.File, disk.Target.Device)
+		} else if len(disk.Source.Device) > 0 {
+			promDiskLabels = append(promLabels, disk.Source.Device, disk.Target.Device)
 		}
 
 		promDiskLabels := append(promLabels, disk.Source.File, disk.Target.Device)
