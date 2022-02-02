@@ -361,7 +361,6 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 			promDiskLabels = append(promLabels, disk.Source.Device, disk.Target.Device)
 		}
 
-		promDiskLabels := append(promLabels, disk.Source.File, disk.Target.Device)
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainBlockRdBytesDesc,
 			prometheus.CounterValue,
