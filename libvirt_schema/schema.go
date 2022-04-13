@@ -14,9 +14,9 @@ type Metadata struct {
 }
 
 type NovaInstance struct {
-	XMLName xml.Name  `xml:"instance"`
-	Name    string    `xml:"name"`
-	Owner   NovaOwner `xml:"owner"`
+	XMLName xml.Name   `xml:"instance"`
+	Name    string     `xml:"name"`
+	Owner   NovaOwner  `xml:"owner"`
 	Flavor  NovaFlavor `xml:"flavor"`
 }
 
@@ -52,7 +52,8 @@ type Disk struct {
 }
 
 type DiskSource struct {
-	File string `xml:"file,attr"`
+	File   string `xml:"file,attr"`
+	Device string `xml:"dev,attr"`
 }
 
 type DiskTarget struct {
