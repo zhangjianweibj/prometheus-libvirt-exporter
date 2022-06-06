@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package libvirt is a pure Go implementation of the libvirt RPC protocol.
-// For more information on the protocol, see https://libvirt.org/internals/l.html
 package libvirt
 
 // We'll use c-for-go to extract the consts and typedefs from the libvirt
@@ -21,49 +19,68 @@ package libvirt
 //go:generate scripts/gen-consts.sh
 
 import (
-	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/digitalocean/go-libvirt/internal/constants"
+	"github.com/digitalocean/go-libvirt/internal/event"
 	xdr "github.com/digitalocean/go-libvirt/internal/go-xdr/xdr2"
+	"github.com/digitalocean/go-libvirt/socket"
 )
 
 // ErrEventsNotSupported is returned by Events() if event streams
 // are unsupported by either QEMU or libvirt.
 var ErrEventsNotSupported = errors.New("event monitor is not supported")
 
-// internal event
-type event interface {
-	GetCallbackID() uint32
-}
+// ConnectURI defines a type for driver URIs for libvirt
+// the defined constants are *not* exhaustive as there are also options
+// e.g. to connect remote via SSH
+type ConnectURI string
+
+const (
+	// QEMUSystem connects to a QEMU system mode daemon
+	QEMUSystem ConnectURI = "qemu:///system"
+	// QEMUSession connects to a QEMU session mode daemon (unprivileged)
+	QEMUSession ConnectURI = "qemu:///session"
+	// XenSystem connects to a Xen system mode daemon
+	XenSystem ConnectURI = "xen:///system"
+	//TestDefault connect to default mock driver
+	TestDefault ConnectURI = "test:///default"
+
+	// disconnectedTimeout is how long to wait for disconnect cleanup to
+	// complete
+	disconnectTimeout = 5 * time.Second
+)
 
 // Libvirt implements libvirt's remote procedure call protocol.
 type Libvirt struct {
-	conn net.Conn
-	r    *bufio.Reader
-	w    *bufio.Writer
-	mu   *sync.Mutex
+	// socket connection
+	socket *socket.Socket
+	// closed after cleanup complete following the underlying connection to
+	// libvirt being disconnected.
+	disconnected chan struct{}
 
 	// method callbacks
-	cm        sync.Mutex
-	callbacks map[uint32]chan response
+	cmux      sync.RWMutex
+	callbacks map[int32]chan response
 
 	// event listeners
-	em     sync.Mutex
-	events map[uint32]eventStream
+	emux   sync.RWMutex
+	events map[int32]*event.Stream
 
 	// next request serial number
-	s uint32
+	s int32
 }
 
 // DomainEvent represents a libvirt domain event.
 type DomainEvent struct {
-	CallbackID   uint32
+	CallbackID   int32
 	Domain       Domain
 	Event        string
 	Seconds      uint64
@@ -72,14 +89,14 @@ type DomainEvent struct {
 	Details      []byte
 }
 
-// GetCallbackID returns the callback id of a qemu domain event
-func (de DomainEvent) GetCallbackID() uint32 {
+// GetCallbackID returns the callback ID of a QEMU domain event.
+func (de DomainEvent) GetCallbackID() int32 {
 	return de.CallbackID
 }
 
-// GetCallbackID returns the callback id of a libvirt lifecycle event
-func (m DomainEventCallbackLifecycleMsg) GetCallbackID() uint32 {
-	return uint32(m.CallbackID)
+// GetCallbackID returns the callback ID of a libvirt lifecycle event.
+func (m DomainEventCallbackLifecycleMsg) GetCallbackID() int32 {
+	return m.CallbackID
 }
 
 // qemuError represents a QEMU process error.
@@ -96,16 +113,41 @@ func (l *Libvirt) Capabilities() ([]byte, error) {
 	return []byte(caps), err
 }
 
-// Connect establishes communication with the libvirt server.
+// called at connection time, authenticating with all supported auth types
+func (l *Libvirt) authenticate() error {
+	// libvirt requires that we call auth-list prior to connecting,
+	// even when no authentication is used.
+	resp, err := l.AuthList()
+	if err != nil {
+		return err
+	}
+
+	for _, auth := range resp {
+		switch auth {
+		case constants.AuthNone:
+		case constants.AuthPolkit:
+			_, err := l.AuthPolkit()
+			if err != nil {
+				return err
+			}
+		default:
+			continue
+		}
+		break
+	}
+	return nil
+}
+
+// ConnectToURI establishes communication with the specified libvirt driver
 // The underlying libvirt socket connection must be previously established.
-func (l *Libvirt) Connect() error {
+func (l *Libvirt) ConnectToURI(uri ConnectURI) error {
 	payload := struct {
 		Padding [3]byte
 		Name    string
 		Flags   uint32
 	}{
 		Padding: [3]byte{0x1, 0x0, 0x0},
-		Name:    "qemu:///system",
+		Name:    string(uri),
 		Flags:   0,
 	}
 
@@ -114,9 +156,7 @@ func (l *Libvirt) Connect() error {
 		return err
 	}
 
-	// libvirt requires that we call auth-list prior to connecting,
-	// event when no authentication is used.
-	_, err = l.request(constants.ProcAuthList, constants.Program, buf)
+	err = l.authenticate()
 	if err != nil {
 		return err
 	}
@@ -129,33 +169,43 @@ func (l *Libvirt) Connect() error {
 	return nil
 }
 
+// Connect establishes communication with the libvirt server.
+// The underlying libvirt socket connection must be previously established.
+func (l *Libvirt) Connect() error {
+	return l.ConnectToURI(QEMUSystem)
+}
+
 // Disconnect shuts down communication with the libvirt server and closes the
 // underlying net.Conn.
 func (l *Libvirt) Disconnect() error {
-	// close event streams
-	for id := range l.events {
-		if err := l.removeStream(id); err != nil {
-			return err
-		}
-	}
-
-	// Deregister all the callbacks so that clients with outstanding requests
-	// will unblock.
-	l.deregisterAll()
-
+	// Ordering is important here. We want to make sure the connection is closed
+	// before unsubscribing and deregistering the events and requests, to
+	// prevent new requests from racing.
 	_, err := l.request(constants.ProcConnectClose, constants.Program, nil)
 	if err != nil {
 		return err
 	}
+	err = l.socket.Disconnect()
+	if err != nil {
+		return err
+	}
 
-	return l.conn.Close()
+	// wait for the listen goroutine to detect the lost connection and clean up
+	// to happen once it returns.  Safeguard with a timeout.
+	// Things not fully cleaned up is better than a deadlock.
+	select {
+	case <-l.disconnected:
+	case <-time.After(disconnectTimeout):
+	}
+
+	return err
 }
 
 // Domains returns a list of all domains managed by libvirt.
 //
 // Deprecated: use ConnectListAllDomains instead.
 func (l *Libvirt) Domains() ([]Domain, error) {
-	// these are the flags as passed by `virsh` for `virsh list --all`
+	// these are the flags as passed by `virsh list --all`
 	flags := ConnectListDomainsActive | ConnectListDomainsInactive
 	domains, _, err := l.ConnectListAllDomains(1, flags)
 	return domains, err
@@ -174,83 +224,144 @@ func (l *Libvirt) DomainState(dom string) (DomainState, error) {
 	return DomainState(state), err
 }
 
-// Events streams domain events.
-// If a problem is encountered setting up the event monitor connection
-// an error will be returned. Errors encountered during streaming will
-// cause the returned event channel to be closed.
-func (l *Libvirt) Events(dom string) (<-chan DomainEvent, error) {
+// SubscribeQEMUEvents streams domain events until the provided context is
+// cancelled. If a problem is encountered setting up the event monitor
+// connection an error will be returned. Errors encountered during streaming
+// will cause the returned event channel to be closed. QEMU domain events.
+func (l *Libvirt) SubscribeQEMUEvents(ctx context.Context, dom string) (<-chan DomainEvent, error) {
 	d, err := l.lookup(dom)
 	if err != nil {
 		return nil, err
 	}
 
-	payload := struct {
-		Padding [4]byte
-		Domain  Domain
-		Event   [2]byte
-		Flags   [2]byte
-	}{
-		Padding: [4]byte{0x0, 0x0, 0x1, 0x0},
-		Domain:  d,
-		Event:   [2]byte{0x0, 0x0},
-		Flags:   [2]byte{0x0, 0x0},
-	}
-
-	buf, err := encode(&payload)
+	callbackID, err := l.QEMUConnectDomainMonitorEventRegister([]Domain{d}, nil, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := l.request(constants.QEMUConnectDomainMonitorEventRegister, constants.ProgramQEMU, buf)
-	if err != nil {
-		if err == ErrUnsupported {
-			return nil, ErrEventsNotSupported
-		}
-		return nil, err
-	}
-
-	dec := xdr.NewDecoder(bytes.NewReader(res.Payload))
-
-	cbID, _, err := dec.DecodeUint()
-	if err != nil {
-		return nil, err
-	}
-
-	stream := newEventStream(constants.QEMUConnectDomainMonitorEventDeregister, constants.ProgramQEMU)
-	l.addStream(cbID, stream)
-	c := make(chan DomainEvent)
+	stream := event.NewStream(constants.QEMUProgram, callbackID)
+	l.addStream(stream)
+	ch := make(chan DomainEvent)
 	go func() {
-		// process events
-		for e := range stream.Events {
-			c <- *e.(*DomainEvent)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		defer l.unsubscribeQEMUEvents(stream)
+		defer stream.Shutdown()
+		defer close(ch)
+
+		for {
+			select {
+			case ev, ok := <-stream.Recv():
+				if !ok {
+					return
+				}
+				ch <- *ev.(*DomainEvent)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
-	return c, nil
+	return ch, nil
 }
 
-// LifecycleEvents streams lifecycle events.
-// If a problem is encountered setting up the event monitor connection
-// an error will be returned. Errors encountered during streaming will
-// cause the returned event channel to be closed.
-func (l *Libvirt) LifecycleEvents() (<-chan DomainEventLifecycleMsg, error) {
+// unsubscribeQEMUEvents stops the flow of events from QEMU through libvirt.
+func (l *Libvirt) unsubscribeQEMUEvents(stream *event.Stream) error {
+	err := l.QEMUConnectDomainMonitorEventDeregister(stream.CallbackID)
+	l.removeStream(stream.CallbackID)
+
+	return err
+}
+
+// SubscribeEvents allows the caller to subscribe to any of the event types
+// supported by libvirt. The events will continue to be streamed until the
+// caller cancels the provided context. After canceling the context, callers
+// should wait until the channel is closed to be sure they're collected all the
+// events.
+func (l *Libvirt) SubscribeEvents(ctx context.Context, eventID DomainEventID,
+	dom OptDomain) (<-chan interface{}, error) {
+
+	callbackID, err := l.ConnectDomainEventCallbackRegisterAny(int32(eventID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	stream := event.NewStream(constants.QEMUProgram, callbackID)
+	l.addStream(stream)
+
+	ch := make(chan interface{})
+	go func() {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		defer l.unsubscribeEvents(stream)
+		defer stream.Shutdown()
+		defer func() { close(ch) }()
+
+		for {
+			select {
+			case ev, ok := <-stream.Recv():
+				if !ok {
+					return
+				}
+				ch <- ev
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
+// unsubscribeEvents stops the flow of the specified events from libvirt. There
+// are two steps to this process: a call to libvirt to deregister our callback,
+// and then removing the callback from the list used by the `Route` function. If
+// the deregister call fails, we'll return the error, but still remove the
+// callback from the list. That's ok; if any events arrive after this point, the
+// Route function will drop them when it finds no registered handler.
+func (l *Libvirt) unsubscribeEvents(stream *event.Stream) error {
+	err := l.ConnectDomainEventCallbackDeregisterAny(stream.CallbackID)
+	l.removeStream(stream.CallbackID)
+
+	return err
+}
+
+// LifecycleEvents streams lifecycle events until the provided context is
+// cancelled. If a problem is encountered setting up the event monitor
+// connection, an error will be returned. Errors encountered during streaming
+// will cause the returned event channel to be closed.
+func (l *Libvirt) LifecycleEvents(ctx context.Context) (<-chan DomainEventLifecycleMsg, error) {
 	callbackID, err := l.ConnectDomainEventCallbackRegisterAny(int32(DomainEventIDLifecycle), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	stream := newEventStream(constants.ProcConnectDomainEventCallbackDeregisterAny, constants.Program)
-	l.addStream(uint32(callbackID), stream)
+	stream := event.NewStream(constants.Program, callbackID)
+	l.addStream(stream)
 
-	c := make(chan DomainEventLifecycleMsg)
+	ch := make(chan DomainEventLifecycleMsg)
+
 	go func() {
-		// process events
-		for e := range stream.Events {
-			c <- e.(*DomainEventCallbackLifecycleMsg).Msg
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		defer l.unsubscribeEvents(stream)
+		defer stream.Shutdown()
+		defer func() { close(ch) }()
+
+		for {
+			select {
+			case ev, ok := <-stream.Recv():
+				if !ok {
+					return
+				}
+				ch <- ev.(*DomainEventCallbackLifecycleMsg).Msg
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
-	return c, nil
+	return ch, nil
 }
 
 // Run executes the given QAPI command against a domain's QEMU instance.
@@ -277,7 +388,7 @@ func (l *Libvirt) Run(dom string, cmd []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	res, err := l.request(constants.QEMUDomainMonitor, constants.ProgramQEMU, buf)
+	res, err := l.request(constants.QEMUProcDomainMonitorCommand, constants.QEMUProgram, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -534,19 +645,36 @@ func getQEMUError(r response) error {
 	return nil
 }
 
+func (l *Libvirt) waitAndDisconnect() {
+	// wait for the socket to indicate if/when it's been disconnected
+	<-l.socket.Disconnected()
+
+	// close event streams
+	l.removeAllStreams()
+
+	// Deregister all callbacks to prevent blocking on clients with
+	// outstanding requests
+	l.deregisterAll()
+
+	close(l.disconnected)
+}
+
 // New configures a new Libvirt RPC connection.
 func New(conn net.Conn) *Libvirt {
 	l := &Libvirt{
-		conn:      conn,
-		s:         0,
-		r:         bufio.NewReader(conn),
-		w:         bufio.NewWriter(conn),
-		mu:        &sync.Mutex{},
-		callbacks: make(map[uint32]chan response),
-		events:    make(map[uint32]eventStream),
+		s:            0,
+		disconnected: make(chan struct{}),
+		callbacks:    make(map[int32]chan response),
+		events:       make(map[int32]*event.Stream),
 	}
 
-	go l.listen()
+	// this starts the listening and routing
+	// TODO:  The connection and listen goroutine should be moved to the
+	//  Connect function, but this is going to impact the exported API, so
+	//  trying to do as much as possible before doing that.
+	l.socket = socket.New(conn, l)
+
+	go l.waitAndDisconnect()
 
 	return l
 }
