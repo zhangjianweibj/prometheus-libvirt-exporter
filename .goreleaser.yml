@@ -6,7 +6,7 @@ before:
 builds:
   - id: prometheus-libvirt-exporter
     dir: .
-    main: ./prometheus-libvirt-exporter.go
+    main: ./main.go
     binary: prometheus-libvirt-exporter
     flags:
       - -v

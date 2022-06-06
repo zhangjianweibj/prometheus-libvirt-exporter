@@ -1,23 +1,17 @@
-package main
+package exporter
 
 import (
 	"encoding/xml"
-	"flag"
-	"fmt"
+	"go.uber.org/zap"
 	"net"
-	"net/http"
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
-	"go.uber.org/zap"
 )
 
 var (
-	logger *zap.Logger
-
 	libvirtUpDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "", "up"),
 		"Whether scraping libvirt's metrics was successful.",
@@ -181,25 +175,38 @@ type domainMeta struct {
 	libvirtSchema libvirt_schema.Domain
 }
 
+type LibvirtExporterOption func(*LibvirtExporter)
+
+func WithLogger(logger *zap.Logger) LibvirtExporterOption {
+	return func(le *LibvirtExporter) {
+		le.logger = logger
+	}
+}
+
 // LibvirtExporter implements a Prometheus exporter for libvirt state.
 type LibvirtExporter struct {
 	uri    string
 	driver libvirt.ConnectURI
+	logger *zap.Logger
 }
 
 // NewLibvirtExporter creates a new Prometheus exporter for libvirt.
-func NewLibvirtExporter(uri string, driver libvirt.ConnectURI) (*LibvirtExporter, error) {
-	return &LibvirtExporter{
+func NewLibvirtExporter(uri string, driver libvirt.ConnectURI, opts ...LibvirtExporterOption) (*LibvirtExporter, error) {
+	exporter := &LibvirtExporter{
 		uri:    uri,
 		driver: driver,
-	}, nil
+		logger: zap.NewNop(),
+	}
+	for _, otp := range opts {
+		otp(exporter)
+	}
+	return exporter, nil
 }
 
-// DomainFromLibvirt retrives all domains from the libvirt socket and enriches them with some meta information.
+// DomainsFromLibvirt retrives all domains from the libvirt socket and enriches them with some meta information.
 func DomainsFromLibvirt(l *libvirt.Libvirt) ([]domainMeta, error) {
 	domains, _, err := l.ConnectListAllDomains(1, 0)
 	if err != nil {
-		logger.Error("failed to load domain", zap.Error(err))
 		return nil, err
 	}
 
@@ -207,12 +214,10 @@ func DomainsFromLibvirt(l *libvirt.Libvirt) ([]domainMeta, error) {
 	for idx, domain := range domains {
 		xmlDesc, err := l.DomainGetXMLDesc(domain, 0)
 		if err != nil {
-			logger.Error("failed to DomainGetXMLDesc", zap.Error(err))
 			return nil, err
 		}
 		var libvirtSchema libvirt_schema.Domain
 		if err = xml.Unmarshal([]byte(xmlDesc), &libvirtSchema); err != nil {
-			logger.Error("failed to Unmarshal domains", zap.Error(err))
 			return nil, err
 		}
 
@@ -236,7 +241,9 @@ func DomainsFromLibvirt(l *libvirt.Libvirt) ([]domainMeta, error) {
 
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
-	CollectFromLibvirt(ch, e.uri, e.driver)
+	if err := CollectFromLibvirt(ch, e.uri, e.driver); err != nil {
+		e.logger.Error("failed to collect metrics", zap.Error(err))
+	}
 }
 
 // CollectFromLibvirt obtains Prometheus metrics from all domains in a
@@ -244,14 +251,12 @@ func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
 func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.ConnectURI) (err error) {
 	var conn net.Conn
 	if conn, err = net.DialTimeout("unix", uri, 5*time.Second); err != nil {
-		logger.Error("failed to dial libvirt", zap.Error(err))
 		return err
 	}
 	defer conn.Close()
 
 	l := libvirt.New(conn)
 	if err = l.ConnectToURI(driver); err != nil {
-		logger.Error("failed to connect", zap.Error(err))
 		return err
 	}
 
@@ -259,7 +264,6 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 
 	var host string
 	if host, err = l.ConnectGetHostname(); err != nil {
-		logger.Error("failed to get hostname", zap.Error(err))
 		return err
 	}
 
@@ -280,7 +284,6 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 
 	for _, domain := range domains {
 		if err = CollectDomain(ch, l, domain); err != nil {
-			logger.Error("failed to Collect domains", zap.Error(err))
 			return err
 		}
 	}
@@ -291,7 +294,6 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domainMeta) (err error) {
 	var host string
 	if host, err = l.ConnectGetHostname(); err != nil {
-		logger.Error("failed to get hostname", zap.Error(err))
 		return err
 	}
 
@@ -299,7 +301,6 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domai
 	var rvirCpu uint16
 	var rmaxmem, rmemory, rcputime uint64
 	if rState, rmaxmem, rmemory, rvirCpu, rcputime, err = l.DomainGetInfo(domain.libvirtDomain); err != nil {
-		logger.Error("failed to get domainInfo", zap.Error(err))
 		return err
 	}
 
@@ -323,17 +324,15 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domai
 
 	var isActive int32
 	if isActive, err = l.DomainIsActive(domain.libvirtDomain); err != nil {
-		logger.Error("failed to get active status of domain", zap.String("domain", domain.domainName), zap.Error(err))
 		return err
 	}
 	if isActive != 1 {
-		logger.Info("domain is not active", zap.String("domain", domain.domainName))
 		return nil
 	}
 
 	for _, collectFunc := range []collectFunc{CollectDomainBlockDeviceInfo, CollectDomainNetworkInfo, CollectDomainDomainStatInfo} {
-		if err = collectFunc(ch, l, domain, promLabels); err != nil {
-			logger.Warn("failed to collect some domain info", zap.Error(err))
+		if err := collectFunc(ch, l, domain, promLabels); err != nil {
+			return err
 		}
 	}
 
@@ -349,7 +348,6 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 
 		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
 		if rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(domain.libvirtDomain, disk.Target.Device); err != nil {
-			logger.Warn("failed to get DomainBlockStats", zap.Error(err))
 			return err
 		}
 
@@ -390,7 +388,6 @@ func CollectDomainNetworkInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, d
 		}
 		var rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop int64
 		if rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(domain.libvirtDomain, iface.Target.Device); err != nil {
-			logger.Warn("failed to get DomainInterfaceStats", zap.Error(err))
 			return err
 		}
 
@@ -450,7 +447,6 @@ func CollectDomainDomainStatInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt
 	//collect stat info
 	var rStats []libvirt.DomainMemoryStat
 	if rStats, err = l.DomainMemoryStats(domain.libvirtDomain, uint32(libvirt.DomainMemoryStatNr), 0); err != nil {
-		logger.Warn("failed to get domainstat", zap.Error(err))
 		return err
 	}
 	for _, stat := range rStats {
@@ -531,38 +527,4 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainStatMemoryAvailableInBytesDesc
 	ch <- libvirtDomainStatMemoryUsableBytesDesc
 	ch <- libvirtDomainStatMemoryRssBytesDesc
-}
-
-func main() {
-	logger, _ = zap.NewProduction()
-	defer logger.Sync()
-
-	var (
-		listenAddress = flag.String("web.listen-address", ":9000", "Address to listen on for web interface and telemetry.")
-		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		libvirtURI    = flag.String("libvirt.uri", "/var/run/libvirt/libvirt-sock-ro", "Libvirt URI from which to extract metrics.")
-		driver        = flag.String("libvirt.driver", string(libvirt.QEMUSystem), fmt.Sprintf("Available drivers: %s (Default), %s, %s and %s ", libvirt.QEMUSystem, libvirt.QEMUSession, libvirt.XenSystem, libvirt.TestDefault))
-	)
-	flag.Parse()
-
-	exporter, err := NewLibvirtExporter(*libvirtURI, libvirt.ConnectURI(*driver))
-	if err != nil {
-		panic(err)
-	}
-	prometheus.MustRegister(exporter)
-
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`
-			<html>
-			<head><title>Libvirt Exporter</title></head>
-			<body>
-			<h1>Libvirt Exporter</h1>
-			<p><a href='` + *metricsPath + `'>Metrics</a></p>
-			</body>
-			</html>`))
-	})
-	if err = http.ListenAndServe(*listenAddress, nil); err != nil {
-		logger.Error("unexpected server shutdown", zap.Error(err))
-	}
 }
