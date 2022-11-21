@@ -1,0 +1,11 @@
+[Unit]
+Description=<Libvirt Exporter by zhangjianweibj>
+
+[Service]
+User=libvirt-exporter
+WorkingDirectory=/home/libvirt-exporter/prometheus-libvirt-exporter
+ExecStart=/home/libvirt-exporter/prometheus-libvirt-exporter/prometheus-libvirt-exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
