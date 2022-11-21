@@ -7,9 +7,20 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 # Building and running
 
 ## Requirements
-1. Gorelease: `go install github.com/goreleaser/goreleaser`
-
+1. Gorelease: `go install github.com/goreleaser/goreleaser@latest`
 2. Taskfile: `go install github.com/go-task/task/v3/cmd/task@latest`
+
+## Installation Steps for Linux Filesystem
+
+1. `cd /root/ ; apt-get install golang`
+2. `curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
+3. `cp /root/go/bin/dep /usr/bin`
+4. `useradd libvirt-exporter`
+4. `cd /home/libvirt-exporter ; git clone https://github.com/zhangjianweibj/prometheus-libvirt-exporter`
+5. `cd prometheus-libvirt-exporter ; go build prometheus-libvirt-exporter.go`
+6. `cp libvirt-exporter.service /usr/bin/`
+7. `systemctl daemon-reload`
+8. `systemctl enable libvirt-exporter ; systemctl start libvirt-exporter ; systemctl status libvirt-exporter`
 
 ## use go dep(depressed)
 1. install go dep
