@@ -1,17 +1,21 @@
 # prometheus-libvirt-exporter
+
 prometheus-libvirt-exporter for host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors.
 By default, this exporter listens on TCP port 9000,Path '/metrics',to expose metrics.vm's tags contain userId,userName,ProjectId,ProjectName.
 
 [![Build Status](https://travis-ci.org/zhangjianweibj/prometheus-libvirt-exporter.svg?branch=master)](https://travis-ci.org/zhangjianweibj/prometheus-libvirt-exporter)
 [![codecov](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/zhangjianweibj/prometheus-libvirt-exporter)
+
 # Building and running
 
 ## Requirements
+
 1. Gorelease: `go install github.com/goreleaser/goreleaser`
 
 2. Taskfile: `go install github.com/go-task/task/v3/cmd/task@latest`
 
 ## use go dep(depressed)
+
 1. install go dep
 
 2. cp $GOPATH/bin/dep /usr/bin/
@@ -23,16 +27,47 @@ By default, this exporter listens on TCP port 9000,Path '/metrics',to expose met
 5. ./prometheus-libvirt-exporter
 
 ## Building
+
 1. Run `task build`
 
 2. Afterwards all packages, binaries and archives are available in the `dist/` folder
 
-## To see all available configuration flags:
+## Build and install with just Docker or Compose
+
+1. Build the Docker image
+
+```
+docker build -t NAMESPACE/prometheus-libvirt-exporter:<version> 
+```
+
+2. Run Docker image
+
+```
+docker run -p 9000:9000 -v /var/run/libvirt:/var/run/libvirt:ro --name libvirt-exporter --network bridge -d ghcr.io/glennbrown/prometheus-libvirt-exporter:1.2.0
+```
+
+3. Run with Docker Compose
+
+```yaml
+libvirt-exporter:
+  image: ghcr.io/glennbrown/prometheus-libvirt-exporter:1.2.0
+  container_name: libvirt-exporter
+  environment:
+    - TZ=America/New_York
+  volumes:
+    - /var/run/libvirt:/var/run/libvirt:ro
+  ports:
+    - 9000:9000
+  network_mode: bridge
+  restart: unless-stopped
+```
+
+## To see all available configuration flags
 
 ./prometheus-libvirt-exporter -h
 
-
 ## metrics
+
 Name | Label |Description
 ---------|---------|-------------
 up|"host"|scraping libvirt's metrics state
@@ -54,7 +89,6 @@ transmit_bytes_total|"domain", "instanceName", "instanceId", "flavorName", "user
 transmit_packets_total|"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "source_bridge", "target_device", "host"|Number of packets transmitted on a network interface
 transmit_errors_total|"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "source_bridge", "target_device", "host"|Number of packet transmit errors on a network interface
 transmit_drops_total|"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "source_bridge", "target_device", "host"|Number of packet transmit drops on a network interface
-
 
 ## Example
 
