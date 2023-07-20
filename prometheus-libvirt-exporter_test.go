@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	libvirt_schema "github.com/zhangjianweibj/prometheus-libvirt-exporter/libvirt_schema"
 	"testing"
+
+	libvirt_schema "github.com/Knalltuete5000/prometheus-libvirt-exporter/libvirt_schema"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {

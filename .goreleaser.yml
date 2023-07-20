@@ -22,7 +22,7 @@ dockers:
   - ids:
       - prometheus-libvirt-exporter
     image_templates:
-      - github.com/zhangjianweibj/{{ .ProjectName }}:{{ .Env.EXPORTER_VERSION }}
+      - github.com/Knalltuete5000/{{ .ProjectName }}:{{ .Env.EXPORTER_VERSION }}
     dockerfile: ./docker/Dockerfile
     skip_push: true
     build_flag_templates:
@@ -36,10 +36,10 @@ nfpms:
       - prometheus-libvirt-exporter
     replacements:
       amd64: x86_64
-    maintainer: "zhangjianweibj"
+    maintainer: "Knalltuete5000"
     description: |
       Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)
-    homepage: "https://github.com/zhangjianweibj/prometheus-libvirt-exporter"
+    homepage: "https://github.com/Knalltuete5000/prometheus-libvirt-exporter"
     license: "MIT License"
     formats:
       - apk
