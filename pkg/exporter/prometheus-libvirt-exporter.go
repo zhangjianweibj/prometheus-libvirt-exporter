@@ -1,9 +1,8 @@
-package main
+package exporter
 
 import (
 	"encoding/xml"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/Knalltuete5000/prometheus-libvirt-exporter/libvirt_schema"
@@ -13,12 +12,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
-	"github.com/prometheus/common/version"
-	"github.com/prometheus/exporter-toolkit/web"
-	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
 var (
@@ -252,7 +245,9 @@ func DomainsFromLibvirt(l *libvirt.Libvirt, logger log.Logger) ([]domainMeta, er
 
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
-	CollectFromLibvirt(ch, e.uri, e.driver, e.logger)
+	if err := CollectFromLibvirt(ch, e.uri, e.driver, e.logger); err != nil {
+		level.Error(e.logger).Log("err", "failed to collect metrics")
+	}
 }
 
 // CollectFromLibvirt obtains Prometheus metrics from all domains in a
@@ -548,44 +543,4 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainStatMemoryAvailableInBytesDesc
 	ch <- libvirtDomainStatMemoryUsableBytesDesc
 	ch <- libvirtDomainStatMemoryRssBytesDesc
-}
-
-func main() {
-	metricsPath := kingpin.Flag(
-		"web.telemetry-path", "Path under which to expose metrics",
-	).Default("/metrics").String()
-	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9000")
-
-	promlogConfig := &promlog.Config{}
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
-	kingpin.Version(version.Print("libvirt_exporter"))
-	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
-	logger := promlog.New(promlogConfig)
-
-	level.Info(logger).Log("msg", "Starting libvirt_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
-
-	exporter, err := NewLibvirtExporter(*libvirtURI, libvirt.ConnectURI(*driver), logger)
-	if err != nil {
-		panic(err)
-	}
-	prometheus.MustRegister(exporter)
-
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`
-			<html>
-			<head><title>Libvirt Exporter</title></head>
-			<body>
-			<h1>Libvirt Exporter</h1>
-			<p><a href='` + *metricsPath + `'>Metrics</a></p>
-			</body>
-			</html>`))
-	})
-
-	srv := &http.Server{}
-	if err = web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("err", err)
-	}
 }
