@@ -11,4 +11,4 @@ tasks:
       EXPORTER_VERSION:
         sh: cat VERSION
     cmds:
-      - goreleaser release --rm-dist --snapshot
+      - goreleaser release --clean --snapshot

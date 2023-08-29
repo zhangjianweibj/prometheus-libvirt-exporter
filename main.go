@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
+	exporter "github.com/Knalltuete5000/prometheus-libvirt-exporter/exporter"
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/go-kit/log/level"
@@ -17,6 +19,16 @@ import (
 )
 
 func main() {
+
+	var (
+		libvirtURI = kingpin.Flag("libvirt.uri",
+			"Libvirt URI from which to extract metrics.",
+		).Default("/var/run/libvirt/libvirt-sock-ro").String()
+		driver = kingpin.Flag("libvirt.driver",
+			fmt.Sprintf("Available drivers: %s (Default), %s, %s and %s ", libvirt.QEMUSystem, libvirt.QEMUSession, libvirt.XenSystem, libvirt.TestDefault),
+		).Default(string(libvirt.QEMUSystem)).String()
+	)
+
 	metricsPath := kingpin.Flag(
 		"web.telemetry-path", "Path under which to expose metrics",
 	).Default("/metrics").String()
@@ -29,10 +41,10 @@ func main() {
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
 
-	level.Info(logger).Log("msg", "Starting libvirt_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+	_ = level.Info(logger).Log("msg", "Starting libvirt_exporter", "version", version.Info())
+	_ = level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
-	exporter, err := NewLibvirtExporter(*libvirtURI, libvirt.ConnectURI(*driver), logger)
+	exporter, err := exporter.NewLibvirtExporter(*libvirtURI, libvirt.ConnectURI(*driver), logger)
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +65,7 @@ func main() {
 		}
 		landingPage, err := web.NewLandingPage(landingCnf)
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			_ = level.Error(logger).Log("err", err)
 			os.Exit(1)
 		}
 		http.Handle("/", landingPage)
@@ -61,7 +73,7 @@ func main() {
 
 	srv := &http.Server{}
 	if err = web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("err", err)
+		_ = level.Error(logger).Log("err", err)
 		os.Exit(1)
 	}
 }

@@ -2,11 +2,12 @@ project_name: prometheus-libvirt-exporter
 before:
   hooks:
     - go mod tidy
+    - go mod download
 
 builds:
   - id: prometheus-libvirt-exporter
     dir: .
-    main: ./prometheus-libvirt-exporter.go
+    main: ./main.go
     binary: prometheus-libvirt-exporter
     flags:
       - -v
@@ -17,25 +18,15 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
 
-dockers:
-  - ids:
-      - prometheus-libvirt-exporter
-    image_templates:
-      - github.com/Knalltuete5000/{{ .ProjectName }}:{{ .Env.EXPORTER_VERSION }}
-    dockerfile: ./docker/Dockerfile
-    skip_push: true
-    build_flag_templates:
-      - "--build-arg=BINARY_NAME={{ .ProjectName }}"
-
+#Configuration for building packages for apk, deb and rpm package managers
 nfpms:
   - id: "prometheus-libvirt-exporter"
     package_name: "prometheus-libvirt-exporter"
-    file_name_template: prometheus-libvirt-exporter-{{ .Env.EXPORTER_VERSION }}.{{ .Arch }}
+    file_name_template: prometheus-libvirt-exporter-{{ .Env.EXPORTER_VERSION }}.{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end -}}
     builds:
       - prometheus-libvirt-exporter
-    replacements:
-      amd64: x86_64
     maintainer: "Knalltuete5000"
     description: |
       Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)
@@ -53,3 +44,19 @@ nfpms:
 
       - src: debian/prometheus-libvirt-exporter.upstart
         dst: /etc/init/prometheus-libvirt-exporter.conf
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Env.EXPORTER_VERSION }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+
+checksum:
+  name_template: "{{ .ProjectName }}-{{ .Env.EXPORTER_VERSION }}_checksums.txt"
+  algorithm: sha256
+
+# Configuration for GitHub Releases
+release:
+  github:
+    owner: Knalltuete5000
+    name: prometheus-libvirt-exporter
+  draft: true
+  replace_existing_draft: true
