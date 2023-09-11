@@ -3,24 +3,25 @@ package libvirt_schema
 import "encoding/xml"
 
 type Domain struct {
-	Devices           Devices           `xml:"devices"`
-	Name              string            `xml:"name"`
-	UUID              string            `xml:"uuid"`
-	Metadata          Metadata          `xml:"metadata"`
-	OpenStackMetadata OpenStackMetadata `xml:"os"`
+	Devices    Devices    `xml:"devices"`
+	Name       string     `xml:"name"`
+	UUID       string     `xml:"uuid"`
+	Metadata   Metadata   `xml:"metadata"`
+	OSMetadata OSMetadata `xml:"os"`
 }
 
 type Metadata struct {
 	NovaInstance NovaInstance `xml:"instance"`
 }
 
-type OpenStackMetadata struct {
-	Type OpenStackType `xml:"type"`
+type OSMetadata struct {
+	Type OSType `xml:"type"`
 }
 
-type OpenStackType struct {
+type OSType struct {
 	Arch    string `xml:"arch,attr"`
 	Machine string `xml:"machine,attr"`
+	Value   string `xml:",chardata"`
 }
 
 type NovaInstance struct {
