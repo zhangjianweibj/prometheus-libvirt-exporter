@@ -7,7 +7,7 @@ respawn
 
 script
    echo $$ > /var/run/prometheus-libvirt-exporter.pid
-   exec prometheus-libvirt-exporter --web.listen-address ":9180"
+   exec prometheus-libvirt-exporter --web.listen-address ":9177"
 end script
 
 post-stop script

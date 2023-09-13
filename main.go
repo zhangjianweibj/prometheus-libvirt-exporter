@@ -32,7 +32,7 @@ func main() {
 	metricsPath := kingpin.Flag(
 		"web.telemetry-path", "Path under which to expose metrics",
 	).Default("/metrics").String()
-	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9000")
+	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9177")
 
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
