@@ -1,4 +1,4 @@
-module github.com/inovex/prometheus-libvirt-exporter
+module github.com/NicoWK/prometheus-libvirt-exporter
 
 go 1.21
 

@@ -1,7 +1,7 @@
 
 # Prometheus-libvirt-exporter
-[![Build and Test](https://github.com/inovex/prometheus-libvirt-exporter/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/inovex/prometheus-libvirt-exporter/actions/workflows/build_and_test.yml)
-[![Lint Go Code](https://github.com/inovex/prometheus-libvirt-exporter/actions/workflows/lint.yml/badge.svg)](https://github.com/inovex/prometheus-libvirt-exporter/actions/workflows/lint.yml)
+[![Build and Test](https://github.com/NicoWK/prometheus-libvirt-exporter/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/NicoWK/prometheus-libvirt-exporter/actions/workflows/build_and_test.yml)
+[![Lint Go Code](https://github.com/NicoWK/prometheus-libvirt-exporter/actions/workflows/lint.yml/badge.svg)](https://github.com/NicoWK/prometheus-libvirt-exporter/actions/workflows/lint.yml)
 
 A prometheus-[libvirt](https://libvirt.org/)-exporter for host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors.
 By default, this exporter listens on TCP port 9177, path '/metrics', to expose metrics.

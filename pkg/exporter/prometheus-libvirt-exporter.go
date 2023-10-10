@@ -4,11 +4,11 @@ import (
 	"encoding/xml"
 	"time"
 
+	"github.com/NicoWK/prometheus-libvirt-exporter/libvirt_schema"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/digitalocean/go-libvirt/socket/dialers"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/inovex/prometheus-libvirt-exporter/libvirt_schema"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

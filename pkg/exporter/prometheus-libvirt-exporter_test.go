@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	libvirt_schema "github.com/inovex/prometheus-libvirt-exporter/libvirt_schema"
+	libvirt_schema "github.com/NicoWK/prometheus-libvirt-exporter/libvirt_schema"
 	"github.com/stretchr/testify/assert"
 )
 

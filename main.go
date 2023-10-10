@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 
+	exporter "github.com/NicoWK/prometheus-libvirt-exporter/pkg/exporter"
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/go-kit/log/level"
-	exporter "github.com/inovex/prometheus-libvirt-exporter/pkg/exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
