@@ -24,7 +24,7 @@ dockers:
   - ids:
       - prometheus-libvirt-exporter
     image_templates:
-      - ghcr.io/nicowk/{{ .ProjectName }}:{{ .Version }}
+      - ghcr.io/inovex/{{ .ProjectName }}:{{ .Version }}
     goos: linux
     goarch: amd64
     dockerfile: goreleaser.dockerfile
@@ -37,10 +37,10 @@ nfpms:
     file_name_template: prometheus-libvirt-exporter-{{ .Version }}.{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end -}}
     builds:
       - prometheus-libvirt-exporter
-    maintainer: "NicoWK"
+    maintainer: "inovex"
     description: |
       Prometheus-libvirt-exporter service (host and vm metrics exposed for prometheus, written in Go with pluggable metric collectors)
-    homepage: "https://github.com/NicoWK/prometheus-libvirt-exporter"
+    homepage: "https://github.com/inovex/prometheus-libvirt-exporter"
     license: "MIT License"
     formats:
       - apk
@@ -66,7 +66,7 @@ checksum:
 # Configuration for GitHub Releases
 release:
   github:
-    owner: NicoWK
+    owner: inovex
     name: prometheus-libvirt-exporter
   #draft: true
   replace_existing_draft: true
