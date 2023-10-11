@@ -20,7 +20,16 @@ builds:
       - linux
     goarch:
       - amd64
-
+dockers:
+  - ids:
+      - prometheus-libvirt-exporter
+    image_templates:
+      - ghcr.io/inovex/{{ .ProjectName }}:{{ .Version }}
+    goos: linux
+    goarch: amd64
+    dockerfile: goreleaser.dockerfile
+    build_flag_templates:
+      - "--build-arg=BINARY_NAME={{ .ProjectName }}"
 #Configuration for building packages for apk, deb and rpm package managers
 nfpms:
   - id: "prometheus-libvirt-exporter"
