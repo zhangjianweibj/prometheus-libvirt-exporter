@@ -68,5 +68,9 @@ release:
   github:
     owner: inovex
     name: prometheus-libvirt-exporter
+  footer: |
+    ## Docker Images
+    - ghrc.io/inovex/prometheus-libvirt-exporter:{{ trimprefix .Tag "v" }}
+    - ghrc.io/inovex/prometheus-libvirt-exporter:latest
   #draft: true
   replace_existing_draft: true
