@@ -86,7 +86,7 @@ var (
 		"Amount of CPU time used by the domain, in seconds.",
 		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host"},
 		nil)
-
+	// block devices
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_bytes_total"),
 		"Number of bytes read from a block device, in bytes.",
@@ -107,7 +107,16 @@ var (
 		"Number of write requests from a block device.",
 		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "target_device"},
 		nil)
-
+	libvirtDomainBlockWrTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_time_total"),
+		"Total duration of write requests from a block device. (ns)",
+		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "target_device"},
+		nil)
+	libvirtDomainBlockRdTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_time_total"),
+		"Total duration of read requests from a block device. (ns)",
+		[]string{"domain", "instanceName", "instanceId", "flavorName", "userName", "userId", "projectName", "projectId", "host", "source_file", "target_device"},
+		nil)
 	//DomainInterface
 	libvirtDomainInterfaceRxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_bytes_total"),
@@ -347,13 +356,49 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 			continue
 		}
 
-		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
-		if rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(domain.libvirtDomain, disk.Target.Device); err != nil {
-			logger.Warn("failed to get DomainBlockStats", zap.Error(err))
-			return err
+		var rRdReq, rRdBytes, rWrReq, rWrBytes, rWrTime, rRdTime int64
+		var diskParams []libvirt.TypedParam
+		var promDiskLabels []string
+
+		// for supported flags see https://libvirt.org/html/libvirt-libvirt-common.html#virTypedParameterFlags
+		// for nparams see go-libvirt/internal/constants/remote_protocol.gen.go DomainBlockStatsParametersMax
+		if diskParams, _, err = l.DomainBlockStatsFlags(domain.libvirtDomain, disk.Target.Device, 16, 4); err != nil {
+			logger.Warn("failed to get DomainBlockStatsFlags, switch to legacy api DomainBlockStats", zap.Error(err))
+
+			if rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(domain.libvirtDomain, disk.Target.Device); err != nil {
+				logger.Warn("failed to get DomainBlockStats", zap.Error(err))
+				return err
+			}
+
+		} else {
+			for _, diskParam := range diskParams {
+
+				// supported keys: wr_bytes, wr_operations, rd_bytes, rd_operations, flush_operations, flush_total_times, wr_total_times, rd_total_times
+				switch diskParam.Field {
+				case "wr_bytes":
+					rWrBytes = diskParam.Value.I.(int64)
+				case "wr_operations":
+					rWrReq = diskParam.Value.I.(int64)
+				case "rd_bytes":
+					rRdBytes = diskParam.Value.I.(int64)
+				case "rd_operations":
+					rRdReq = diskParam.Value.I.(int64)
+				case "wr_total_times":
+					rWrTime = diskParam.Value.I.(int64)
+				case "rd_total_times":
+					rRdTime = diskParam.Value.I.(int64)
+				}
+
+			}
 		}
 
-		promDiskLabels := append(promLabels, disk.Source.File, disk.Target.Device)
+		// check if we have block or fs backend
+		if len(disk.Source.File) > 0 {
+			promDiskLabels = append(promLabels, disk.Source.File, disk.Target.Device)
+		} else if len(disk.Source.Device) > 0 {
+			promDiskLabels = append(promLabels, disk.Source.Device, disk.Target.Device)
+		}
+
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainBlockRdBytesDesc,
 			prometheus.CounterValue,
@@ -376,6 +421,18 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 			libvirtDomainBlockWrReqDesc,
 			prometheus.CounterValue,
 			float64(rWrReq),
+			promDiskLabels...)
+
+		ch <- prometheus.MustNewConstMetric(
+			libvirtDomainBlockWrTimeDesc,
+			prometheus.CounterValue,
+			float64(rWrTime),
+			promDiskLabels...)
+
+		ch <- prometheus.MustNewConstMetric(
+			libvirtDomainBlockRdTimeDesc,
+			prometheus.CounterValue,
+			float64(rRdTime),
 			promDiskLabels...)
 
 	}
@@ -513,6 +570,8 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainBlockRdReqDesc
 	ch <- libvirtDomainBlockWrBytesDesc
 	ch <- libvirtDomainBlockWrReqDesc
+	ch <- libvirtDomainBlockWrTimeDesc
+	ch <- libvirtDomainBlockRdTimeDesc
 
 	//domain interface
 	ch <- libvirtDomainInterfaceRxBytesDesc
