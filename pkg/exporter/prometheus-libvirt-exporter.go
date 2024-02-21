@@ -193,6 +193,28 @@ var (
 		[]string{"domain", "vcpu"},
 		nil)
 
+	// storage pool stats
+	libvirtStoragePoolState = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "storage_pool", "state"),
+		"State of the storage pool.",
+		[]string{"storage_pool"},
+		nil)
+	libvirtStoragePoolCapacity = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "storage_pool", "capacity_bytes"),
+		"Size of the storage pool in logical bytes.",
+		[]string{"storage_pool"},
+		nil)
+	libvirtStoragePoolAllocation = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "storage_pool", "allocation_bytes"),
+		"Current allocation bytes of the storage pool.",
+		[]string{"storage_pool"},
+		nil)
+	libvirtStoragePoolAvailable = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "storage_pool", "available_bytes"),
+		"Remaining free space of the storage pool in bytes.",
+		[]string{"storage_pool"},
+		nil)
+
 	// info metrics
 	libvirtDomainInfoDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "domain", "info"),
@@ -347,6 +369,21 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 			return err
 		}
 	}
+
+	// collect storage pool metrics
+	// see https://libvirt.org/html/libvirt-libvirt-storage.html
+	var pools []libvirt.StoragePool
+	if pools, _, err = l.ConnectListAllStoragePools(1, 0); err != nil {
+		_ = level.Error(logger).Log("err", "failed to collect storage pools", "msg", err)
+		return err
+	}
+	for _, pool := range pools {
+		if err = CollectStoragePoolInfo(ch, l, pool, logger); err != nil {
+			_ = level.Error(logger).Log("err", "failed to collect storage pool info", "msg", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -652,6 +689,41 @@ func CollectDomainVCPUInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, doma
 	return
 }
 
+func CollectStoragePoolInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, pool libvirt.StoragePool, logger log.Logger) (err error) {
+	// Report storage pool metrics
+	var rState uint8
+	var rCapacity, rAllocation, rAvailable uint64
+
+	promLabels := []string{
+		pool.Name,
+	}
+	if rState, rCapacity, rAllocation, rAvailable, err = l.StoragePoolGetInfo(pool); err != nil {
+		_ = level.Warn(logger).Log("warn", "failed to get StoragePoolInfo for pool", "pool", pool.Name, "msg", err)
+		return err
+	}
+	ch <- prometheus.MustNewConstMetric(
+		libvirtStoragePoolState,
+		prometheus.GaugeValue,
+		float64(rState),
+		promLabels...)
+	ch <- prometheus.MustNewConstMetric(
+		libvirtStoragePoolCapacity,
+		prometheus.GaugeValue,
+		float64(rCapacity),
+		promLabels...)
+	ch <- prometheus.MustNewConstMetric(
+		libvirtStoragePoolAllocation,
+		prometheus.GaugeValue,
+		float64(rAllocation),
+		promLabels...)
+	ch <- prometheus.MustNewConstMetric(
+		libvirtStoragePoolAvailable,
+		prometheus.GaugeValue,
+		float64(rAvailable),
+		promLabels...)
+	return
+}
+
 // Describe returns metadata for all Prometheus metrics that may be exported.
 func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtUpDesc
@@ -700,4 +772,10 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainVCPUStatsTime
 	ch <- libvirtDomainVCPUStatsWait
 	ch <- libvirtDomainVCPUStatsDelay
+
+	//storage pool metrics
+	ch <- libvirtStoragePoolState
+	ch <- libvirtStoragePoolCapacity
+	ch <- libvirtStoragePoolAllocation
+	ch <- libvirtStoragePoolAvailable
 }
