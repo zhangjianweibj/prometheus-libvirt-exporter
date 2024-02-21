@@ -58,21 +58,37 @@ type Devices struct {
 
 type Disk struct {
 	Device string     `xml:"device,attr"`
+	Type   string     `xml:"type,attr"`
+	Serial string     `xml:"serial"`
+	Driver DiskDriver `xml:"driver"`
 	Source DiskSource `xml:"source"`
 	Target DiskTarget `xml:"target"`
 }
 
+type DiskDriver struct {
+	Name    string `xml:"name,attr"`
+	Type    string `xml:"type,attr"`
+	Cache   string `xml:"cache,attr"`
+	Discard string `xml:"discard,attr"`
+}
+
 type DiskSource struct {
-	File string `xml:"file,attr"`
+	File     string `xml:"file,attr"`
+	Protocol string `xml:"protocol,attr"`
 }
 
 type DiskTarget struct {
 	Device string `xml:"dev,attr"`
+	Bus    string `xml:"bus,attr"`
 }
 
 type Interface struct {
+	Type   string          `xml:"type,attr"`
 	Source InterfaceSource `xml:"source"`
 	Target InterfaceTarget `xml:"target"`
+	MAC    InterfaceMAC    `xml:"mac"`
+	Model  InterfaceModel  `xml:"model"`
+	MTU    InterfaceMTU    `xml:"mtu"`
 }
 
 type InterfaceSource struct {
@@ -81,4 +97,16 @@ type InterfaceSource struct {
 
 type InterfaceTarget struct {
 	Device string `xml:"dev,attr"`
+}
+
+type InterfaceMAC struct {
+	Address string `xml:"address,attr"`
+}
+
+type InterfaceModel struct {
+	Type string `xml:"type,attr"`
+}
+
+type InterfaceMTU struct {
+	Size string `xml:"size,attr"`
 }
