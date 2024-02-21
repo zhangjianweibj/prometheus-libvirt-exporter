@@ -219,7 +219,7 @@ func NewLibvirtExporter(uri string, driver libvirt.ConnectURI, logger log.Logger
 func DomainsFromLibvirt(l *libvirt.Libvirt, logger log.Logger) ([]domainMeta, error) {
 	domains, _, err := l.ConnectListAllDomains(1, 0)
 	if err != nil {
-		_ = level.Error(logger).Log("err", "failed to load domain")
+		_ = level.Error(logger).Log("err", "failed to load domains", "msg", err)
 		return nil, err
 	}
 
@@ -227,13 +227,13 @@ func DomainsFromLibvirt(l *libvirt.Libvirt, logger log.Logger) ([]domainMeta, er
 	for idx, domain := range domains {
 		xmlDesc, err := l.DomainGetXMLDesc(domain, 0)
 		if err != nil {
-			_ = level.Error(logger).Log("failed to DomainGetXMLDesc")
-			return nil, err
+			_ = level.Error(logger).Log("err", "failed to DomainGetXMLDesc", "domain", domain.Name, "msg", err)
+			continue
 		}
 		var libvirtSchema libvirt_schema.Domain
 		if err = xml.Unmarshal([]byte(xmlDesc), &libvirtSchema); err != nil {
-			_ = level.Error(logger).Log("failed to Unmarshal domains")
-			return nil, err
+			_ = level.Error(logger).Log("err", "failed to unmarshal domain", "domain", domain.Name, "msg", err)
+			continue
 		}
 
 		lvDomains[idx].libvirtDomain = domain
@@ -260,30 +260,22 @@ func DomainsFromLibvirt(l *libvirt.Libvirt, logger log.Logger) ([]domainMeta, er
 // Collect scrapes Prometheus metrics from libvirt.
 func (e *LibvirtExporter) Collect(ch chan<- prometheus.Metric) {
 	if err := CollectFromLibvirt(ch, e.uri, e.driver, e.logger); err != nil {
-		_ = level.Error(e.logger).Log("err", "failed to collect metrics")
+		_ = level.Error(e.logger).Log("err", "failed to collect metrics", "msg", err)
 	}
 }
 
-// CollectFromLibvirt obtains Prometheus metrics from all domains in a
-// libvirt setup.
+// CollectFromLibvirt obtains Prometheus metrics from all domains in a libvirt setup.
 func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.ConnectURI, logger log.Logger) (err error) {
-	// var conn net.Conn
-	// if conn, err = net.DialTimeout("unix", uri, 5*time.Second); err != nil {
-	// 	level.Error(logger).Log("err", "failed to dial libvirt")
-	// 	return err
-	// }
-	// defer conn.Close()
-
 	dialer := dialers.NewLocal(dialers.WithSocket(uri), dialers.WithLocalTimeout((5 * time.Second)))
 	l := libvirt.NewWithDialer(dialer)
 	if err = l.ConnectToURI(driver); err != nil {
-		_ = level.Error(logger).Log("err", "failed to connect")
+		_ = level.Error(logger).Log("err", "failed to connect", "msg", err)
 		return err
 	}
 
 	defer func() {
 		if err := l.Disconnect(); err != nil {
-			_ = level.Error(logger).Log("err", "failed to disconnect")
+			_ = level.Error(logger).Log("err", "failed to disconnect", "msg", err)
 		}
 	}()
 
@@ -293,6 +285,10 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 		1.0)
 
 	domains, err := DomainsFromLibvirt(l, logger)
+	if err != nil {
+		_ = level.Error(logger).Log("err", "failed to retrieve domains from Libvirt", "msg", err)
+		return err
+	}
 
 	domainNumber := len(domains)
 	ch <- prometheus.MustNewConstMetric(
@@ -300,9 +296,11 @@ func CollectFromLibvirt(ch chan<- prometheus.Metric, uri string, driver libvirt.
 		prometheus.GaugeValue,
 		float64(domainNumber))
 
+	// collect domain metrics from libvirt
+	// see https://libvirt.org/html/libvirt-libvirt-domain.html
 	for _, domain := range domains {
 		if err = CollectDomain(ch, l, domain, logger); err != nil {
-			_ = level.Error(logger).Log("err", "failed to Collect domains")
+			_ = level.Error(logger).Log("err", "failed to collect domain", "domain", domain.domainName, "msg", err)
 			return err
 		}
 	}
@@ -316,7 +314,7 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domai
 	var rvirCpu uint16
 	var rmaxmem, rmemory, rcputime uint64
 	if rState, rmaxmem, rmemory, rvirCpu, rcputime, err = l.DomainGetInfo(domain.libvirtDomain); err != nil {
-		_ = level.Error(logger).Log("err", "failed to get domainInfo")
+		_ = level.Error(logger).Log("err", "failed to get domainInfo", "domain", domain.libvirtDomain.Name, "msg", err)
 		return err
 	}
 
@@ -354,17 +352,17 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domai
 
 	var isActive int32
 	if isActive, err = l.DomainIsActive(domain.libvirtDomain); err != nil {
-		_ = level.Error(logger).Log("err", "failed to get active status of domain")
+		_ = level.Error(logger).Log("err", "failed to get active status of domain", "domain", domain.libvirtDomain.Name, "msg", err)
 		return err
 	}
 	if isActive != 1 {
-		_ = level.Info(logger).Log("err", "domain is not active")
+		_ = level.Debug(logger).Log("debug", "domain is not active, skipping", "domain", domain.libvirtDomain.Name)
 		return nil
 	}
 
 	for _, collectFunc := range []collectFunc{CollectDomainBlockDeviceInfo, CollectDomainNetworkInfo, CollectDomainDomainStatInfo} {
 		if err = collectFunc(ch, l, domain, promLabels, logger); err != nil {
-			_ = level.Warn(logger).Log("warn", "failed to collect some domain info")
+			_ = level.Warn(logger).Log("warn", "failed to collect some domain info", "domain", domain.libvirtDomain.Name, "msg", err)
 		}
 	}
 
@@ -380,7 +378,7 @@ func CollectDomainBlockDeviceInfo(ch chan<- prometheus.Metric, l *libvirt.Libvir
 
 		var rRdReq, rRdBytes, rWrReq, rWrBytes int64
 		if rRdReq, rRdBytes, rWrReq, rWrBytes, _, err = l.DomainBlockStats(domain.libvirtDomain, disk.Target.Device); err != nil {
-			_ = level.Warn(logger).Log("warn", "failed to get DomainBlockStats")
+			_ = level.Warn(logger).Log("warn", "failed to get DomainBlockStats", "domain", domain.libvirtDomain.Name, "msg", err)
 			return err
 		}
 
@@ -421,7 +419,7 @@ func CollectDomainNetworkInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, d
 		}
 		var rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop int64
 		if rRxBytes, rRxPackets, rRxErrs, rRxDrop, rTxBytes, rTxPackets, rTxErrs, rTxDrop, err = l.DomainInterfaceStats(domain.libvirtDomain, iface.Target.Device); err != nil {
-			_ = level.Warn(logger).Log("warn", "failed to get DomainInterfaceStats")
+			_ = level.Warn(logger).Log("warn", "failed to get DomainInterfaceStats", "domain", domain.libvirtDomain.Name, "msg", err)
 			return err
 		}
 
@@ -481,7 +479,7 @@ func CollectDomainDomainStatInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt
 	//collect stat info
 	var rStats []libvirt.DomainMemoryStat
 	if rStats, err = l.DomainMemoryStats(domain.libvirtDomain, uint32(libvirt.DomainMemoryStatNr), 0); err != nil {
-		_ = level.Warn(logger).Log("warn", "failed to get domainstat")
+		_ = level.Warn(logger).Log("warn", "failed to get DomainMemoryStats", "domain", domain.libvirtDomain.Name, "msg", err)
 		return err
 	}
 	for _, stat := range rStats {
