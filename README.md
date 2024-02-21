@@ -61,6 +61,12 @@ libvirt_domain_interface_stats_transmit_bytes_total | "domain", "target_device" 
 libvirt_domain_interface_stats_transmit_packets_total | "domain", "target_device" | Number of packets transmitted on a network interface
 libvirt_domain_interface_stats_transmit_errors_total | "domain", "target_device" | Number of packet transmit errors on a network interface
 libvirt_domain_interface_stats_transmit_drops_total | "domain", "target_device" | Number of packet transmit drops on a network interface
+libvirt_domain_vcpu_current | "domain" | Number of current online vCPUs
+libvirt_domain_vcpu_delay_seconds_total | "domain", "vcpu" | Time the vCPU spent waiting in the queue instead of running. Exposed to the VM as steal time
+libvirt_domain_vcpu_maximum | "domain" | Number of maximum online vCPUs
+libvirt_domain_vcpu_state | "domain", "vcpu" | State of the vCPU
+libvirt_domain_vcpu_time_seconds_total | "domain", "vcpu" | Time spent by the virtual CPU
+libvirt_domain_vcpu_wait_seconds_total | "domain", "vcpu" | Time the vCPU wants to run, but the host scheduler has something else running ahead of it
 
 
 ## Example
@@ -93,5 +99,10 @@ libvirt_domain_memory_stats_swap_out_bytes{domain="instance-0001e06e"} 0
 libvirt_domain_memory_stats_unused_bytes{domain="instance-0001e06e"} 1.3844406272e+10
 libvirt_domain_memory_stats_usable_bytes{domain="instance-0001e06e"} 1.4880370688e+10
 libvirt_domain_openstack_info{domain="instance-0001e06e",flavor_name="z1.4xlarge",instance_id="a12423b02-4a36-4530-bf25-acb8ba80b1b1",instance_name="openstackInstanceName",project_id="hghngfhbf45435352353623gvfegt352",project_name="openstackProjectName",user_id="",user_name="openstackUserName"} 1
-
+libvirt_domain_vcpu_current{domain="instance-00000131"} 2
+libvirt_domain_vcpu_delay_seconds_total{domain="instance-00000131",vcpu="0"} 6309719178
+libvirt_domain_vcpu_maximum{domain="instance-00000131"} 2
+libvirt_domain_vcpu_state{domain="instance-00000131",vcpu="0"} 1
+libvirt_domain_vcpu_time_seconds_total{domain="instance-00000131",vcpu="0"} 2111850000000
+libvirt_domain_vcpu_wait_seconds_total{domain="instance-00000131",vcpu="0"} 4103560000000
 ```

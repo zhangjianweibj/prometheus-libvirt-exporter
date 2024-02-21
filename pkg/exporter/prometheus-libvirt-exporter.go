@@ -2,6 +2,7 @@ package exporter
 
 import (
 	"encoding/xml"
+	"regexp"
 	"time"
 
 	"github.com/digitalocean/go-libvirt"
@@ -158,6 +159,38 @@ var (
 		prometheus.BuildFQName(namespace, "domain_interface_stats", "transmit_drops_total"),
 		"Number of packet transmit drops on a network interface.",
 		[]string{"domain", "target_device"},
+		nil)
+
+	// domain vcpu stats
+	libvirtDomainVCPUStatsCurrent = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "current"),
+		"Number of current online vCPUs.",
+		[]string{"domain"},
+		nil)
+	libvirtDomainVCPUStatsMaximum = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "maximum"),
+		"Number of maximum online vCPUs.",
+		[]string{"domain"},
+		nil)
+	libvirtDomainVCPUStatsState = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "state"),
+		"State of the vCPU.",
+		[]string{"domain", "vcpu"},
+		nil)
+	libvirtDomainVCPUStatsTime = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "time_seconds_total"),
+		"Time spent by the virtual CPU.",
+		[]string{"domain", "vcpu"},
+		nil)
+	libvirtDomainVCPUStatsWait = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "wait_seconds_total"),
+		"Time the vCPU wants to run, but the host scheduler has something else running ahead of it.",
+		[]string{"domain", "vcpu"},
+		nil)
+	libvirtDomainVCPUStatsDelay = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "domain_vcpu", "delay_seconds_total"),
+		"Time the vCPU spent waiting in the queue instead of running. Exposed to the VM as steal time.",
+		[]string{"domain", "vcpu"},
 		nil)
 
 	// info metrics
@@ -370,7 +403,7 @@ func CollectDomain(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domai
 		return nil
 	}
 
-	for _, collectFunc := range []collectFunc{CollectDomainBlockDeviceInfo, CollectDomainNetworkInfo, CollectDomainDomainStatInfo} {
+	for _, collectFunc := range []collectFunc{CollectDomainBlockDeviceInfo, CollectDomainNetworkInfo, CollectDomainMemoryStatInfo, CollectDomainVCPUInfo} {
 		if err = collectFunc(ch, l, domain, promLabels, logger); err != nil {
 			_ = level.Warn(logger).Log("warn", "failed to collect some domain info", "domain", domain.libvirtDomain.Name, "msg", err)
 		}
@@ -498,7 +531,7 @@ func CollectDomainNetworkInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, d
 	return
 }
 
-func CollectDomainDomainStatInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domainMeta, promLabels []string, logger log.Logger) (err error) {
+func CollectDomainMemoryStatInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domainMeta, promLabels []string, logger log.Logger) (err error) {
 	//collect stat info
 	var rStats []libvirt.DomainMemoryStat
 	if rStats, err = l.DomainMemoryStats(domain.libvirtDomain, uint32(libvirt.DomainMemoryStatNr), 0); err != nil {
@@ -548,6 +581,77 @@ func CollectDomainDomainStatInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt
 	return
 }
 
+func CollectDomainVCPUInfo(ch chan<- prometheus.Metric, l *libvirt.Libvirt, domain domainMeta, promLabels []string, logger log.Logger) (err error) {
+	//collect domain vCPU stats
+	var stats []libvirt.DomainStatsRecord
+	// ConnectGetAllDomainStats expects a list of domains
+	var d []libvirt.Domain
+	d = append(d, domain.libvirtDomain)
+
+	if stats, err = l.ConnectGetAllDomainStats(d, uint32(libvirt.DomainStatsVCPU), 0); err != nil {
+		_ = level.Warn(logger).Log("warn", "failed to get vcpu stats", "domain", domain.libvirtDomain.Name, "msg", err)
+		return err
+	}
+	current := regexp.MustCompile("vcpu.current")
+	maximum := regexp.MustCompile("vcpu.maximum")
+	vcpu_metrics := regexp.MustCompile(`vcpu\.\d+\.\w+`)
+	for _, stat := range stats {
+		for _, param := range stat.Params {
+			switch true {
+			case current.MatchString(param.Field):
+				metric_value := param.Value.I.(uint32)
+				ch <- prometheus.MustNewConstMetric(
+					libvirtDomainVCPUStatsCurrent,
+					prometheus.GaugeValue,
+					float64(metric_value),
+					promLabels...)
+			case maximum.MatchString(param.Field):
+				metric_value := param.Value.I.(uint32)
+				ch <- prometheus.MustNewConstMetric(
+					libvirtDomainVCPUStatsMaximum,
+					prometheus.GaugeValue,
+					float64(metric_value),
+					promLabels...)
+			case vcpu_metrics.MatchString(param.Field):
+				r := regexp.MustCompile(`vcpu\.(\d+)\.(\w+)`)
+				match := r.FindStringSubmatch(param.Field)
+				promVCPULabels := append(promLabels, match[1])
+				switch match[2] {
+				case "state":
+					metric_value := param.Value.I.(int32)
+					ch <- prometheus.MustNewConstMetric(
+						libvirtDomainVCPUStatsState,
+						prometheus.GaugeValue,
+						float64(metric_value),
+						promVCPULabels...)
+				case "time":
+					metric_value := param.Value.I.(uint64)
+					ch <- prometheus.MustNewConstMetric(
+						libvirtDomainVCPUStatsTime,
+						prometheus.CounterValue,
+						float64(metric_value),
+						promVCPULabels...)
+				case "wait":
+					metric_value := param.Value.I.(uint64)
+					ch <- prometheus.MustNewConstMetric(
+						libvirtDomainVCPUStatsWait,
+						prometheus.CounterValue,
+						float64(metric_value),
+						promVCPULabels...)
+				case "delay":
+					metric_value := param.Value.I.(uint64)
+					ch <- prometheus.MustNewConstMetric(
+						libvirtDomainVCPUStatsDelay,
+						prometheus.CounterValue,
+						float64(metric_value),
+						promVCPULabels...)
+				}
+			}
+		}
+	}
+	return
+}
+
 // Describe returns metadata for all Prometheus metrics that may be exported.
 func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtUpDesc
@@ -588,4 +692,12 @@ func (e *LibvirtExporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- libvirtDomainMemoryStatsAvailableInBytesDesc
 	ch <- libvirtDomainMemoryStatsUsableBytesDesc
 	ch <- libvirtDomainMemoryStatsRssBytesDesc
+
+	//domain vcpu stats
+	ch <- libvirtDomainVCPUStatsCurrent
+	ch <- libvirtDomainVCPUStatsMaximum
+	ch <- libvirtDomainVCPUStatsState
+	ch <- libvirtDomainVCPUStatsTime
+	ch <- libvirtDomainVCPUStatsWait
+	ch <- libvirtDomainVCPUStatsDelay
 }
